@@ -551,3 +551,9 @@ a:hover {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+
+/* Spinner keyframe animation — used by loading indicators across the app */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}

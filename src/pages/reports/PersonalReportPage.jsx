@@ -13,7 +13,12 @@ import {
   FileText,
   ArrowLeft
 } from 'lucide-react';
+
+import { reportApi } from '../../api/reportApi';
 import { StatusBadge, PriorityBadge, TaskStatusBadge } from '../../components/Badge';
+
+
+
 
 export function PersonalReportPage({ 
   reportToEdit, 
@@ -149,29 +154,60 @@ export function PersonalReportPage({
   };
 
   // Construct payload
-  const buildReportData = (targetStatus) => {
+  const [saving, setSaving] = useState(false);
+
+  // Build payload matching backend ReportRequest DTO exactly
+  const buildReportPayload = () => ({
+    projectId: Number(projectId),
+    weekStart,  // LocalDate: "YYYY-MM-DD"
+    weekEnd,    // LocalDate: "YYYY-MM-DD"
+    tasksPlannedNextWeek,
+    notes,
+    taskEntries: taskEntries.map(t => ({
+      id: t.id && !isNaN(t.id) && t.id < 1e12 ? t.id : undefined,  // Only send real DB IDs
+      taskName: t.taskName,
+      priority: t.priority,
+      plannedPct: Number(t.plannedPct),
+      actualPct: Number(t.actualPct),
+      status: t.status,
+      timePlannedHrs: Number(t.timePlannedHrs),
+      timeSpentHrs: Number(t.timeSpentHrs),
+      outputDeliverable: t.outputDeliverable
+    })),
+    blockers: blockers.map(b => ({
+      id: b.id && !isNaN(b.id) && b.id < 1e12 ? b.id : undefined,
+      description: b.description,
+      isKeyIssue: Boolean(b.isKeyIssue)
+    })),
+    achievements: achievements.map(a => ({
+      id: a.id && !isNaN(a.id) && a.id < 1e12 ? a.id : undefined,
+      description: a.description,
+      isKeyAchievement: Boolean(a.isKeyAchievement)
+    })),
+    hoursBreakdowns: [
+      { taskType: 'DEVELOPMENT', hours: Number(hoursDevelopment) },
+      { taskType: 'TESTING', hours: Number(hoursTesting) },
+      { taskType: 'MEETINGS', hours: Number(hoursMeetings) },
+      { taskType: 'DOCUMENTATION', hours: Number(hoursDocumentation) },
+      { taskType: 'OTHER', hours: Number(hoursOther) }
+    ].filter(h => h.hours > 0)
+  });
+
+  // Also build local mock-compatible object for App.jsx state update
+  const buildLocalReportData = (targetStatus) => {
     const selectedProject = projects.find(p => p.id === Number(projectId)) || projects[0];
     const totalHours = Number(hoursDevelopment) + Number(hoursTesting) + Number(hoursMeetings) + Number(hoursDocumentation) + Number(hoursOther);
-
     return {
       id: reportToEdit?.id || Date.now(),
       userId: currentUser.id,
       userName: currentUser.fullName,
       userEmail: currentUser.email,
-      userTitle: currentUser.title || 'Engineer',
-      userAvatar: currentUser.avatar,
       projectId: Number(projectId),
-      projectName: selectedProject.name,
-      weekStart,
-      weekEnd,
-      status: targetStatus,
+      projectName: selectedProject?.name,
+      weekStart, weekEnd, status: targetStatus,
       currentVersionNo: (reportToEdit?.currentVersionNo || 0) + (targetStatus === 'SUBMITTED' ? 1 : 0),
       submittedAt: targetStatus === 'SUBMITTED' ? new Date().toISOString().replace('T', ' ').substring(0, 16) : reportToEdit?.submittedAt,
-      tasksPlannedNextWeek,
-      notes,
-      taskEntries,
-      blockers,
-      achievements,
+      tasksPlannedNextWeek, notes, taskEntries, blockers, achievements,
       hoursBreakdowns: [
         { taskType: 'DEVELOPMENT', hours: Number(hoursDevelopment) },
         { taskType: 'TESTING', hours: Number(hoursTesting) },
@@ -179,20 +215,31 @@ export function PersonalReportPage({
         { taskType: 'DOCUMENTATION', hours: Number(hoursDocumentation) },
         { taskType: 'OTHER', hours: Number(hoursOther) }
       ],
-      totalHours,
-      reviewComments: reportToEdit?.reviewComments || []
+      totalHours, reviewComments: reportToEdit?.reviewComments || []
     };
   };
 
-  const onSave = () => {
-    const data = buildReportData('DRAFT');
-    onSaveDraft(data);
-    setNotification('Draft successfully saved.');
-    setTimeout(() => setNotification(null), 3500);
+  const onSave = async () => {
+    setSaving(true);
+    try {
+      const payload = buildReportPayload();
+      if (isEditing && reportToEdit?.id) {
+        await reportApi.updateReport(reportToEdit.id, payload);
+      } else {
+        await reportApi.createDraft(payload);
+      }
+      setNotification('Draft successfully saved to server.');
+      if (onSaveDraft) onSaveDraft(buildLocalReportData('DRAFT'));
+    } catch (err) {
+      console.error('Save draft failed:', err);
+      setNotification(`Save error: ${err.message}`);
+    } finally {
+      setSaving(false);
+      setTimeout(() => setNotification(null), 3500);
+    }
   };
 
-  const onSubmit = () => {
-    // Basic form validation per assignment guidelines
+  const onSubmit = async () => {
     if (!tasksPlannedNextWeek.trim()) {
       alert('Please fill in "Tasks Planned for Next Week".');
       return;
@@ -202,12 +249,31 @@ export function PersonalReportPage({
       alert('Please provide a name for all tasks in the table.');
       return;
     }
-    const data = buildReportData('SUBMITTED');
-    onSubmitReport(data);
+    setSaving(true);
+    try {
+      const payload = buildReportPayload();
+      let savedReport;
+      if (isEditing && reportToEdit?.id) {
+        await reportApi.updateReport(reportToEdit.id, payload);
+        savedReport = { id: reportToEdit.id };
+      } else {
+        savedReport = await reportApi.createDraft(payload);
+      }
+      const reportId = savedReport?.id || reportToEdit?.id;
+      if (reportId) await reportApi.submitReport(reportId);
+      setNotification('Report submitted for manager review!');
+      if (onSubmitReport) onSubmitReport(buildLocalReportData('SUBMITTED'));
+    } catch (err) {
+      console.error('Submit report failed:', err);
+      alert(`Submit failed: ${err.message}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Recent reviewer comment (if in NEEDS_CORRECTION)
-  const latestCorrectionComment = reportToEdit?.reviewComments?.slice(-1)[0];
+  const latestCorrectionComment = reportToEdit?.latestReviewComment || reportToEdit?.reviewComments?.slice(-1)[0];
+
 
   return (
     <div className="app-container">
@@ -824,17 +890,19 @@ export function PersonalReportPage({
             <button
               type="button"
               onClick={onSave}
+              disabled={saving}
               className="btn btn-secondary"
             >
-              <Save size={16} /> Save as Draft
+              <Save size={16} /> {saving ? 'Saving...' : 'Save as Draft'}
             </button>
 
             <button
               type="button"
               onClick={onSubmit}
+              disabled={saving}
               className="btn btn-primary btn-lg"
             >
-              <Send size={16} /> Submit Report for Review
+              <Send size={16} /> {saving ? 'Submitting...' : 'Submit Report for Review'}
             </button>
           </div>
         )}

@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
-import { Plus, Edit2, Users, FolderKanban, Check, X, Trash2, Power } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Edit2, Users, FolderKanban, Check, X, Trash2, Power, RefreshCw, AlertCircle } from 'lucide-react';
+import { projectApi } from '../../api/projectApi';
 
-export function ProjectsPage({ projects, allUsers, onAddProject, onUpdateProject, currentUser }) {
+export function ProjectsPage({ projects: mockProjects, allUsers, onAddProject, onUpdateProject, currentUser }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [assigningProject, setAssigningProject] = useState(null);
+  const [projects, setProjects] = useState(mockProjects || []);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [fetchError, setFetchError] = useState('');
 
   // Form states
   const [name, setName] = useState('');
@@ -15,6 +20,27 @@ export function ProjectsPage({ projects, allUsers, onAddProject, onUpdateProject
 
   const isManagerOrAdmin = currentUser.role === 'ROLE_MANAGER' || currentUser.role === 'ROLE_ADMIN';
   const teamMembers = allUsers.filter(u => u.role === 'ROLE_TEAM_MEMBER');
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    setLoading(true);
+    setFetchError('');
+    try {
+      const res = isManagerOrAdmin
+        ? await projectApi.getAllProjects()
+        : await projectApi.getActiveProjects();
+      setProjects(res ?? []);
+    } catch (err) {
+      console.error('Failed to load projects:', err);
+      setFetchError(err.message || 'Could not load projects. Showing local data.');
+      setProjects(mockProjects || []);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const openAddModal = () => {
     setName('');
@@ -38,50 +64,58 @@ export function ProjectsPage({ projects, allUsers, onAddProject, onUpdateProject
     setSelectedMemberIds(proj.memberIds || []);
   };
 
-  const handleSaveProject = (e) => {
+  const handleSaveProject = async (e) => {
     e.preventDefault();
     if (!name.trim()) return;
-
-    if (editingProject) {
-      onUpdateProject({
-        ...editingProject,
-        name,
-        category,
-        description,
-        color
-      });
-      setEditingProject(null);
-    } else {
-      const newProj = {
-        id: Date.now(),
-        name,
-        category,
-        description,
-        color,
-        isActive: true,
-        memberIds: selectedMemberIds,
-        memberCount: selectedMemberIds.length
-      };
-      onAddProject(newProj);
-      setShowAddModal(false);
+    setActionLoading(true);
+    try {
+      if (editingProject) {
+        const updated = await projectApi.updateProject(editingProject.id, { name, description, isActive: editingProject.isActive });
+        setProjects(projects.map(p => p.id === editingProject.id ? { ...p, ...updated } : p));
+        if (onUpdateProject) onUpdateProject({ ...editingProject, name, description });
+        setEditingProject(null);
+      } else {
+        const created = await projectApi.createProject({ name, description });
+        setProjects([...projects, created]);
+        if (onAddProject) onAddProject(created);
+        setShowAddModal(false);
+      }
+    } catch (err) {
+      alert(`Failed to save project: ${err.message}`);
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const handleSaveAssignments = () => {
+  const handleSaveAssignments = async () => {
     if (!assigningProject) return;
-    onUpdateProject({
-      ...assigningProject,
-      memberIds: selectedMemberIds,
-      memberCount: selectedMemberIds.length
-    });
-    setAssigningProject(null);
+    setActionLoading(true);
+    try {
+      await projectApi.assignUsers(assigningProject.id, selectedMemberIds);
+      setProjects(projects.map(p => p.id === assigningProject.id
+        ? { ...p, memberIds: selectedMemberIds, memberCount: selectedMemberIds.length }
+        : p
+      ));
+      if (onUpdateProject) onUpdateProject({ ...assigningProject, memberIds: selectedMemberIds, memberCount: selectedMemberIds.length });
+      setAssigningProject(null);
+    } catch (err) {
+      alert(`Failed to assign members: ${err.message}`);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
-  const handleToggleActive = (proj) => {
-    onUpdateProject({
-      ...proj,
-      isActive: !proj.isActive
-    });
+  const handleToggleActive = async (proj) => {
+    setActionLoading(true);
+    try {
+      await projectApi.updateProject(proj.id, { name: proj.name, description: proj.description, isActive: !proj.isActive });
+      setProjects(projects.map(p => p.id === proj.id ? { ...p, isActive: !proj.isActive } : p));
+      if (onUpdateProject) onUpdateProject({ ...proj, isActive: !proj.isActive });
+    } catch (err) {
+      alert(`Failed to update project status: ${err.message}`);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const toggleMemberSelection = (userId) => {
@@ -93,6 +127,7 @@ export function ProjectsPage({ projects, allUsers, onAddProject, onUpdateProject
   };
 
   return (
+
     <div className="app-container">
       {/* Header */}
       <div className="page-header">
