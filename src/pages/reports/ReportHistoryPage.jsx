@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Eye, Edit3, Calendar, Folder, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
-import { StatusBadge } from '../components/Badge';
+import { StatusBadge } from '../../components/Badge';
 
 export function ReportHistoryPage({ 
   reports, 

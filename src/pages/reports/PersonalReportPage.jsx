@@ -13,7 +13,7 @@ import {
   FileText,
   ArrowLeft
 } from 'lucide-react';
-import { StatusBadge, PriorityBadge, TaskStatusBadge } from '../components/Badge';
+import { StatusBadge, PriorityBadge, TaskStatusBadge } from '../../components/Badge';
 
 export function PersonalReportPage({ 
   reportToEdit, 

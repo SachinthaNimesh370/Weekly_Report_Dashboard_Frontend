@@ -11,8 +11,8 @@ import {
   FileText,
   MessageSquare
 } from 'lucide-react';
-import { StatusBadge, PriorityBadge, TaskStatusBadge } from '../components/Badge';
-import { REPORT_VERSIONS } from '../data/mockData';
+import { StatusBadge, PriorityBadge, TaskStatusBadge } from '../../components/Badge';
+import { REPORT_VERSIONS } from '../../data/mockData';
 
 export function ReportDetailPage({ report, onBack, currentUser, onNavigateToReview }) {
   const [activeVersion, setActiveVersion] = useState(null);

@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import { muiTheme } from './theme/muiTheme';
+
 import { Navbar } from './components/Navbar';
 import { AiChatWidget } from './components/AiChatWidget';
-import { AuthPage } from './pages/AuthPage';
-import { PersonalReportPage } from './pages/PersonalReportPage';
-import { ReportHistoryPage } from './pages/ReportHistoryPage';
-import { ReportDetailPage } from './pages/ReportDetailPage';
-import { ManagerReviewPage } from './pages/ManagerReviewPage';
-import { TeamDashboardPage } from './pages/TeamDashboardPage';
-import { MemberProfilePage } from './pages/MemberProfilePage';
-import { ProjectsPage } from './pages/ProjectsPage';
-import { UserManagementPage } from './pages/UserManagementPage';
+import { AuthPage } from './pages/auth/AuthPage';
+import { PersonalReportPage } from './pages/reports/PersonalReportPage';
+import { ReportHistoryPage } from './pages/reports/ReportHistoryPage';
+import { ReportDetailPage } from './pages/reports/ReportDetailPage';
+import { ManagerReviewPage } from './pages/manager/ManagerReviewPage';
+import { TeamDashboardPage } from './pages/manager/TeamDashboardPage';
+import { MemberProfilePage } from './pages/manager/MemberProfilePage';
+import { ProjectsPage } from './pages/projects/ProjectsPage';
+import { UserManagementPage } from './pages/users/UserManagementPage';
 
 import { 
   INITIAL_USERS, 
@@ -196,124 +200,132 @@ export function App() {
   };
 
   if (!isAuthenticated) {
-    return <AuthPage onLogin={handleLogin} allUsers={users} />;
+    return (
+      <ThemeProvider theme={muiTheme}>
+        <CssBaseline />
+        <AuthPage onLogin={handleLogin} allUsers={users} />
+      </ThemeProvider>
+    );
   }
 
   // Count pending reviews for badge in navbar
   const pendingReviewCount = reports.filter(r => r.status === 'SUBMITTED').length;
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Top App Navbar */}
-      <Navbar
-        currentUser={currentUser}
-        activeView={activeView}
-        onNavigate={(view) => {
-          if (view === 'my-report') setSelectedReport(null);
-          setActiveView(view);
-        }}
-        onSwitchUser={handleSwitchUser}
-        onLogout={handleLogout}
-        allUsers={users}
-        pendingReviewCount={pendingReviewCount}
-      />
+    <ThemeProvider theme={muiTheme}>
+      <CssBaseline />
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        {/* Top App Navbar */}
+        <Navbar
+          currentUser={currentUser}
+          activeView={activeView}
+          onNavigate={(view) => {
+            if (view === 'my-report') setSelectedReport(null);
+            setActiveView(view);
+          }}
+          onSwitchUser={handleSwitchUser}
+          onLogout={handleLogout}
+          allUsers={users}
+          pendingReviewCount={pendingReviewCount}
+        />
 
-      {/* Main View Router */}
-      <main style={{ flex: 1 }}>
-        {activeView === 'my-report' && (
-          <PersonalReportPage
-            reportToEdit={selectedReport || reports.find(r => r.userId === currentUser.id && (r.status === 'DRAFT' || r.status === 'NEEDS_CORRECTION'))}
-            currentUser={currentUser}
-            projects={projects}
-            onSaveDraft={handleSaveDraft}
-            onSubmitReport={handleSubmitReport}
-            onBackToHistory={() => setActiveView('history')}
-          />
-        )}
+        {/* Main View Router */}
+        <main style={{ flex: 1 }}>
+          {activeView === 'my-report' && (
+            <PersonalReportPage
+              reportToEdit={selectedReport || reports.find(r => r.userId === currentUser.id && (r.status === 'DRAFT' || r.status === 'NEEDS_CORRECTION'))}
+              currentUser={currentUser}
+              projects={projects}
+              onSaveDraft={handleSaveDraft}
+              onSubmitReport={handleSubmitReport}
+              onBackToHistory={() => setActiveView('history')}
+            />
+          )}
 
-        {activeView === 'history' && (
-          <ReportHistoryPage
-            reports={reports}
-            currentUser={currentUser}
-            onViewReport={handleViewReport}
-            onEditReport={handleEditReport}
-            onCreateNew={handleCreateNewReport}
-          />
-        )}
+          {activeView === 'history' && (
+            <ReportHistoryPage
+              reports={reports}
+              currentUser={currentUser}
+              onViewReport={handleViewReport}
+              onEditReport={handleEditReport}
+              onCreateNew={handleCreateNewReport}
+            />
+          )}
 
-        {activeView === 'detail' && (
-          <ReportDetailPage
-            report={selectedReport}
-            currentUser={currentUser}
-            onBack={() => {
-              if (currentUser.role === 'ROLE_TEAM_MEMBER') {
-                setActiveView('history');
-              } else {
+          {activeView === 'detail' && (
+            <ReportDetailPage
+              report={selectedReport}
+              currentUser={currentUser}
+              onBack={() => {
+                if (currentUser.role === 'ROLE_TEAM_MEMBER') {
+                  setActiveView('history');
+                } else {
+                  setActiveView('dashboard');
+                }
+              }}
+              onNavigateToReview={handleNavigateToReview}
+            />
+          )}
+
+          {activeView === 'dashboard' && (
+            <TeamDashboardPage
+              reports={reports}
+              allUsers={users}
+              projects={projects}
+              onReviewReport={handleNavigateToReview}
+              onViewReport={handleViewReport}
+              onViewMemberProfile={handleViewMemberProfile}
+            />
+          )}
+
+          {activeView === 'review-list' && (
+            <ManagerReviewPage
+              report={selectedReport}
+              reports={reports}
+              onSelectReport={(r) => setSelectedReport(r)}
+              onApprove={handleApproveReport}
+              onRequestChanges={handleRequestChanges}
+              onBackToDashboard={() => {
+                setSelectedReport(null);
                 setActiveView('dashboard');
-              }
-            }}
-            onNavigateToReview={handleNavigateToReview}
-          />
-        )}
+              }}
+            />
+          )}
 
-        {activeView === 'dashboard' && (
-          <TeamDashboardPage
-            reports={reports}
-            allUsers={users}
-            projects={projects}
-            onReviewReport={handleNavigateToReview}
-            onViewReport={handleViewReport}
-            onViewMemberProfile={handleViewMemberProfile}
-          />
-        )}
+          {activeView === 'profile' && (
+            <MemberProfilePage
+              member={selectedMember}
+              reports={reports}
+              projects={projects}
+              onBack={() => setActiveView('dashboard')}
+              onViewReport={handleViewReport}
+            />
+          )}
 
-        {activeView === 'review-list' && (
-          <ManagerReviewPage
-            report={selectedReport}
-            reports={reports}
-            onSelectReport={(r) => setSelectedReport(r)}
-            onApprove={handleApproveReport}
-            onRequestChanges={handleRequestChanges}
-            onBackToDashboard={() => {
-              setSelectedReport(null);
-              setActiveView('dashboard');
-            }}
-          />
-        )}
+          {activeView === 'projects' && (
+            <ProjectsPage
+              projects={projects}
+              allUsers={users}
+              onAddProject={handleAddProject}
+              onUpdateProject={handleUpdateProject}
+              currentUser={currentUser}
+            />
+          )}
 
-        {activeView === 'profile' && (
-          <MemberProfilePage
-            member={selectedMember}
-            reports={reports}
-            projects={projects}
-            onBack={() => setActiveView('dashboard')}
-            onViewReport={handleViewReport}
-          />
-        )}
+          {activeView === 'users' && (
+            <UserManagementPage
+              allUsers={users}
+              onUpdateUser={handleUpdateUser}
+              onAddUser={handleAddUser}
+              currentUser={currentUser}
+            />
+          )}
+        </main>
 
-        {activeView === 'projects' && (
-          <ProjectsPage
-            projects={projects}
-            allUsers={users}
-            onAddProject={handleAddProject}
-            onUpdateProject={handleUpdateProject}
-            currentUser={currentUser}
-          />
-        )}
-
-        {activeView === 'users' && (
-          <UserManagementPage
-            allUsers={users}
-            onUpdateUser={handleUpdateUser}
-            onAddUser={handleAddUser}
-            currentUser={currentUser}
-          />
-        )}
-      </main>
-
-      {/* Floating AI Chat Assistant Widget (Available for prompt Q&A across the app) */}
-      <AiChatWidget currentUser={currentUser} />
-    </div>
+        {/* Floating AI Chat Assistant Widget (Available for prompt Q&A across the app) */}
+        <AiChatWidget currentUser={currentUser} />
+      </div>
+    </ThemeProvider>
   );
 }
 

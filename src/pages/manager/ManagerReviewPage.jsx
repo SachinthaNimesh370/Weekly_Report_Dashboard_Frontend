@@ -11,7 +11,7 @@ import {
   User,
   Check
 } from 'lucide-react';
-import { StatusBadge, PriorityBadge, TaskStatusBadge } from '../components/Badge';
+import { StatusBadge, PriorityBadge, TaskStatusBadge } from '../../components/Badge';
 
 export function ManagerReviewPage({ 
   report, 
