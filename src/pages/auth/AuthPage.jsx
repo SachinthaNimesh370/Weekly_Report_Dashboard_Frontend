@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Lock, Mail, User, Shield, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Lock, Mail, User, Shield, CheckCircle2, ArrowRight, Loader2 } from 'lucide-react';
+import { authApi } from '../../api/authApi';
 
 export function AuthPage({ onLogin, allUsers }) {
   const [isRegister, setIsRegister] = useState(false);
@@ -8,51 +9,94 @@ export function AuthPage({ onLogin, allUsers }) {
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState('ROLE_TEAM_MEMBER');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    if (isRegister) {
-      if (!fullName.trim() || !email.trim()) {
-        setError('Please fill in all required fields.');
-        return;
-      }
-      const newUser = {
-        id: Date.now(),
-        fullName,
-        email,
-        role,
-        roleName: role === 'ROLE_ADMIN' ? 'Admin' : role === 'ROLE_MANAGER' ? 'Manager' : 'Team Member',
-        isActive: true,
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
-        title: 'Software Engineer',
-        department: 'Engineering'
-      };
-      onLogin(newUser);
-    } else {
-      const found = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-      if (found) {
-        onLogin(found);
-      } else {
-        // Fallback default
-        onLogin({
-          id: 99,
-          fullName: email.split('@')[0],
-          email,
-          role: 'ROLE_TEAM_MEMBER',
-          roleName: 'Team Member',
+    try {
+      if (isRegister) {
+        if (!fullName.trim() || !email.trim() || !password.trim()) {
+          setError('Please fill in all required fields.');
+          setLoading(false);
+          return;
+        }
+        const data = await authApi.register({
+          fullName: fullName.trim(),
+          email: email.trim(),
+          password: password.trim(),
+          role
+        });
+        const loggedInUser = {
+          id: data.id,
+          fullName: data.fullName,
+          email: data.email,
+          role: data.role,
+          roleName: data.role === 'ROLE_ADMIN' ? 'Admin' : data.role === 'ROLE_MANAGER' ? 'Manager' : 'Team Member',
+          token: data.token,
           isActive: true,
           avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80'
+        };
+        onLogin(loggedInUser);
+      } else {
+        const data = await authApi.login({
+          email: email.trim(),
+          password: password.trim()
         });
+        const loggedInUser = {
+          id: data.id,
+          fullName: data.fullName,
+          email: data.email,
+          role: data.role,
+          roleName: data.role === 'ROLE_ADMIN' ? 'Admin' : data.role === 'ROLE_MANAGER' ? 'Manager' : 'Team Member',
+          token: data.token,
+          isActive: true,
+          avatar: data.role === 'ROLE_ADMIN' 
+            ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80'
+            : data.role === 'ROLE_MANAGER'
+            ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80'
+            : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80'
+        };
+        onLogin(loggedInUser);
       }
+    } catch (err) {
+      console.error('Authentication error:', err);
+      setError(err.message || 'Authentication failed. Please verify credentials.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleQuickLogin = (targetEmail) => {
-    const user = allUsers.find(u => u.email === targetEmail);
-    if (user) {
-      onLogin(user);
+  const handleQuickLogin = async (targetEmail, targetPassword) => {
+    setError('');
+    setEmail(targetEmail);
+    setPassword(targetPassword);
+    setLoading(true);
+
+    try {
+      const data = await authApi.login({ email: targetEmail, password: targetPassword });
+      const loggedInUser = {
+        id: data.id,
+        fullName: data.fullName,
+        email: data.email,
+        role: data.role,
+        roleName: data.role === 'ROLE_ADMIN' ? 'Admin' : data.role === 'ROLE_MANAGER' ? 'Manager' : 'Team Member',
+        token: data.token,
+        isActive: true,
+        avatar: data.role === 'ROLE_ADMIN' 
+          ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80'
+          : data.role === 'ROLE_MANAGER'
+          ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80'
+          : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80'
+      };
+      onLogin(loggedInUser);
+    } catch (err) {
+      console.error('Quick login error:', err);
+      setError(err.message || 'Failed to authenticate seed account.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -119,19 +163,21 @@ export function AuthPage({ onLogin, allUsers }) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button
-              onClick={() => handleQuickLogin('member@weeklyreport.com')}
+              onClick={() => handleQuickLogin('member@weeklyreport.com', 'Member@123')}
+              disabled={loading}
               className="btn btn-secondary btn-sm"
               style={{ justifyContent: 'space-between', padding: '8px 12px' }}
             >
               <div style={{ textAlign: 'left' }}>
-                <span style={{ fontWeight: 600, color: '#0f172a' }}>Alex Chen</span>
+                <span style={{ fontWeight: 600, color: '#0f172a' }}>John Developer (Member)</span>
                 <span style={{ color: '#64748b', fontSize: '0.75rem', marginLeft: '6px' }}>ROLE_TEAM_MEMBER</span>
               </div>
               <ArrowRight size={14} style={{ color: '#2563eb' }} />
             </button>
 
             <button
-              onClick={() => handleQuickLogin('manager@weeklyreport.com')}
+              onClick={() => handleQuickLogin('manager@weeklyreport.com', 'Manager@123')}
+              disabled={loading}
               className="btn btn-secondary btn-sm"
               style={{ justifyContent: 'space-between', padding: '8px 12px' }}
             >
@@ -143,12 +189,13 @@ export function AuthPage({ onLogin, allUsers }) {
             </button>
 
             <button
-              onClick={() => handleQuickLogin('admin@weeklyreport.com')}
+              onClick={() => handleQuickLogin('admin@weeklyreport.com', 'Admin@123')}
+              disabled={loading}
               className="btn btn-secondary btn-sm"
               style={{ justifyContent: 'space-between', padding: '8px 12px' }}
             >
               <div style={{ textAlign: 'left' }}>
-                <span style={{ fontWeight: 600, color: '#0f172a' }}>System Admin</span>
+                <span style={{ fontWeight: 600, color: '#0f172a' }}>System Administrator</span>
                 <span style={{ color: '#64748b', fontSize: '0.75rem', marginLeft: '6px' }}>ROLE_ADMIN</span>
               </div>
               <ArrowRight size={14} style={{ color: '#2563eb' }} />
@@ -239,10 +286,18 @@ export function AuthPage({ onLogin, allUsers }) {
 
             <button
               type="submit"
+              disabled={loading}
               className="btn btn-primary btn-lg"
-              style={{ width: '100%', marginTop: '0.5rem' }}
+              style={{ width: '100%', marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
             >
-              {isRegister ? 'Register & Continue' : 'Sign In to Dashboard'}
+              {loading ? (
+                <>
+                  <span style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                  {isRegister ? 'Registering...' : 'Signing In...'}
+                </>
+              ) : (
+                isRegister ? 'Register & Continue' : 'Sign In to Dashboard'
+              )}
             </button>
           </form>
         </div>

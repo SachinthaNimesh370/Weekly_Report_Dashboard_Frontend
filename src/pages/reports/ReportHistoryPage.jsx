@@ -1,30 +1,68 @@
-import React, { useState } from 'react';
-import { Plus, Eye, Edit3, Calendar, Folder, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Eye, Edit3, Calendar, Folder, Clock, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import { StatusBadge } from '../../components/Badge';
+import { reportApi } from '../../api/reportApi';
 
 export function ReportHistoryPage({ 
-  reports, 
+  reports: mockReports, 
   currentUser, 
   onViewReport, 
   onEditReport, 
   onCreateNew 
 }) {
   const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Filter only current user's reports (RBAC ownership)
-  const myReports = reports.filter(r => r.userId === currentUser.id);
+  useEffect(() => {
+    fetchReports();
+  }, [selectedStatus]);
+
+  const fetchReports = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const params = {};
+      if (selectedStatus !== 'ALL') params.status = selectedStatus;
+      params.page = 0;
+      params.size = 50;
+      const res = await reportApi.getMyReports(params);
+      // res may be PaginatedResponse with content array
+      const list = res?.content ?? res ?? [];
+      setReports(list);
+    } catch (err) {
+      console.error('Failed to fetch reports:', err);
+      setError(err.message || 'Failed to load reports. Please try again.');
+      // Fallback to mock data
+      const myReports = mockReports.filter(r => r.userId === currentUser.id);
+      setReports(selectedStatus === 'ALL' ? myReports : myReports.filter(r => r.status === selectedStatus));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const statusCounts = {
+    ALL: reports.length,
+    DRAFT: reports.filter(r => r.status === 'DRAFT').length,
+    SUBMITTED: reports.filter(r => r.status === 'SUBMITTED').length,
+    NEEDS_CORRECTION: reports.filter(r => r.status === 'NEEDS_CORRECTION').length,
+    APPROVED: reports.filter(r => r.status === 'APPROVED').length
+  };
 
   const filteredReports = selectedStatus === 'ALL'
-    ? myReports
-    : myReports.filter(r => r.status === selectedStatus);
+    ? reports
+    : reports.filter(r => r.status === selectedStatus);
 
   const statuses = [
-    { id: 'ALL', label: 'All Reports', count: myReports.length },
-    { id: 'DRAFT', label: 'Drafts', count: myReports.filter(r => r.status === 'DRAFT').length },
-    { id: 'SUBMITTED', label: 'Submitted', count: myReports.filter(r => r.status === 'SUBMITTED').length },
-    { id: 'NEEDS_CORRECTION', label: 'Needs Correction', count: myReports.filter(r => r.status === 'NEEDS_CORRECTION').length },
-    { id: 'APPROVED', label: 'Approved', count: myReports.filter(r => r.status === 'APPROVED').length }
+    { id: 'ALL', label: 'All Reports', count: statusCounts.ALL },
+    { id: 'DRAFT', label: 'Drafts', count: statusCounts.DRAFT },
+    { id: 'SUBMITTED', label: 'Submitted', count: statusCounts.SUBMITTED },
+    { id: 'NEEDS_CORRECTION', label: 'Needs Correction', count: statusCounts.NEEDS_CORRECTION },
+    { id: 'APPROVED', label: 'Approved', count: statusCounts.APPROVED }
   ];
+
+
 
   return (
     <div className="app-container">
@@ -67,7 +105,19 @@ export function ReportHistoryPage({
 
       {/* Reports Table Card */}
       <div className="card" style={{ padding: 0 }}>
-        {filteredReports.length === 0 ? (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#64748b' }}>
+            <div style={{ width: '32px', height: '32px', border: '3px solid #e2e8f0', borderTopColor: '#2563eb', borderRadius: '50%', margin: '0 auto 12px', animation: 'spin 0.7s linear infinite' }} />
+            <p style={{ fontSize: '0.875rem' }}>Loading your reports...</p>
+          </div>
+        ) : error ? (
+          <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#64748b' }}>
+            <AlertCircle size={32} style={{ color: '#f59e0b', marginBottom: '8px' }} />
+            <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: '4px' }}>Using offline data</div>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', maxWidth: '360px', margin: '0 auto 12px' }}>{error}</p>
+            <button onClick={fetchReports} className="btn btn-secondary btn-sm"><RefreshCw size={14} /> Retry</button>
+          </div>
+        ) : filteredReports.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#64748b' }}>
             <Calendar size={36} style={{ color: '#cbd5e1', marginBottom: '8px' }} />
             <div style={{ fontWeight: 600, fontSize: '1rem', color: '#0f172a' }}>No reports found</div>
@@ -81,6 +131,7 @@ export function ReportHistoryPage({
             </button>
           </div>
         ) : (
+
           <div className="table-container" style={{ border: 'none' }}>
             <table className="data-table">
               <thead>

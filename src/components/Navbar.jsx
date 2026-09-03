@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
   LayoutDashboard, 
@@ -10,8 +10,12 @@ import {
   CheckSquare, 
   Shield, 
   Sparkles,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
+import axiosClient from '../api/axiosClient';
+
 
 export function Navbar({ 
   currentUser, 
@@ -26,7 +30,29 @@ export function Navbar({
   const isManager = currentUser.role === 'ROLE_MANAGER';
   const isAdmin = currentUser.role === 'ROLE_ADMIN';
 
+  const [backendOnline, setBackendOnline] = useState(null); // null=checking, true=online, false=offline
+
+  useEffect(() => {
+    const checkBackend = async () => {
+      try {
+        await axiosClient.get('/api/auth/me', { timeout: 3000 });
+        setBackendOnline(true);
+      } catch (err) {
+        // 401 = backend is alive but no token, which is fine
+        if (err?.response?.status === 401 || err?.response?.status === 403) {
+          setBackendOnline(true);
+        } else {
+          setBackendOnline(false);
+        }
+      }
+    };
+    checkBackend();
+    const interval = setInterval(checkBackend, 30000); // re-check every 30s
+    return () => clearInterval(interval);
+  }, []);
+
   return (
+
     <header style={{ 
       backgroundColor: '#ffffff', 
       borderBottom: '1px solid var(--border-color)',
@@ -189,6 +215,28 @@ export function Navbar({
 
         {/* User Badge & Logout */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+
+          {/* Backend Connection Status Badge */}
+          {backendOnline !== null && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '3px 10px',
+              borderRadius: '9999px',
+              fontSize: '0.7rem',
+              fontWeight: 600,
+              backgroundColor: backendOnline ? '#f0fdf4' : '#fef2f2',
+              color: backendOnline ? '#16a34a' : '#dc2626',
+              border: `1px solid ${backendOnline ? '#bbf7d0' : '#fecaca'}`,
+            }}>
+              {backendOnline
+                ? <><Wifi size={11} /> API Online</>
+                : <><WifiOff size={11} /> API Offline</>
+              }
+            </div>
+          )}
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '9px', textAlign: 'right' }}>
             <img 
               src={currentUser.avatar} 

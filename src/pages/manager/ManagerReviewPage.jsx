@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle2, 
   RotateCcw, 
@@ -9,13 +9,15 @@ import {
   Calendar,
   Clock,
   User,
-  Check
+  Check,
+  RefreshCw
 } from 'lucide-react';
 import { StatusBadge, PriorityBadge, TaskStatusBadge } from '../../components/Badge';
+import { reportApi } from '../../api/reportApi';
 
 export function ManagerReviewPage({ 
-  report, 
-  reports, 
+  report: selectedReportProp, 
+  reports: mockReports, 
   onSelectReport, 
   onApprove, 
   onRequestChanges, 
@@ -25,35 +27,83 @@ export function ManagerReviewPage({
   const [showCorrectionModal, setShowCorrectionModal] = useState(false);
   const [commentError, setCommentError] = useState('');
   const [successToast, setSuccessToast] = useState(null);
+  const [pendingReports, setPendingReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [fetchError, setFetchError] = useState('');
+  const [report, setReport] = useState(selectedReportProp);
 
-  // If no specific report is opened, show list of submitted reports awaiting manager review
-  const pendingReports = reports.filter(r => r.status === 'SUBMITTED');
+  useEffect(() => {
+    fetchPendingReports();
+  }, []);
 
-  const handleApprove = () => {
-    if (!report) return;
-    onApprove(report.id);
-    setSuccessToast(`Report for ${report.userName} has been Approved!`);
-    setTimeout(() => {
-      setSuccessToast(null);
-      if (onBackToDashboard) onBackToDashboard();
-    }, 1600);
+  useEffect(() => {
+    setReport(selectedReportProp);
+  }, [selectedReportProp]);
+
+  const fetchPendingReports = async () => {
+    setLoading(true);
+    setFetchError('');
+    try {
+      const res = await reportApi.getManagerReports({ status: 'SUBMITTED', page: 0, size: 50 });
+      const list = res?.content ?? res ?? [];
+      setPendingReports(list);
+    } catch (err) {
+      console.error('Failed to fetch manager reports:', err);
+      setFetchError(err.message || 'Failed to load reports. Showing cached data.');
+      // Fallback to mock data
+      setPendingReports((mockReports || []).filter(r => r.status === 'SUBMITTED'));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleRequestChangesSubmit = (e) => {
+  const handleApprove = async () => {
+    if (!report) return;
+    setActionLoading(true);
+    try {
+      await reportApi.approveReport(report.id);
+      if (onApprove) onApprove(report.id);
+      setSuccessToast(`Report for ${report.userName} has been Approved!`);
+      setTimeout(() => {
+        setSuccessToast(null);
+        if (onBackToDashboard) onBackToDashboard();
+        fetchPendingReports();
+      }, 1600);
+    } catch (err) {
+      setSuccessToast(`Error: ${err.message}`);
+      setTimeout(() => setSuccessToast(null), 3000);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRequestChangesSubmit = async (e) => {
     e.preventDefault();
     if (!comment.trim()) {
       setCommentError('A general feedback comment explaining what needs correction is mandatory.');
       return;
     }
-    onRequestChanges(report.id, comment.trim());
-    setShowCorrectionModal(false);
-    setComment('');
-    setSuccessToast(`Requested changes from ${report.userName}. Status changed to NEEDS_CORRECTION.`);
-    setTimeout(() => {
-      setSuccessToast(null);
-      if (onBackToDashboard) onBackToDashboard();
-    }, 1800);
+    setActionLoading(true);
+    try {
+      await reportApi.requestChanges(report.id, comment.trim());
+      if (onRequestChanges) onRequestChanges(report.id, comment.trim());
+      setShowCorrectionModal(false);
+      setComment('');
+      setSuccessToast(`Requested changes from ${report.userName}. Status changed to NEEDS_CORRECTION.`);
+      setTimeout(() => {
+        setSuccessToast(null);
+        if (onBackToDashboard) onBackToDashboard();
+        fetchPendingReports();
+      }, 1800);
+    } catch (err) {
+      setCommentError(err.message || 'Failed to request changes. Please try again.');
+    } finally {
+      setActionLoading(false);
+    }
   };
+
+
 
   if (!report) {
     return (
@@ -79,7 +129,18 @@ export function ManagerReviewPage({
         </div>
 
         <div className="card" style={{ padding: 0 }}>
-          {pendingReports.length === 0 ? (
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#64748b' }}>
+              <div style={{ width: '32px', height: '32px', border: '3px solid #e2e8f0', borderTopColor: '#2563eb', borderRadius: '50%', margin: '0 auto 12px', animation: 'spin 0.7s linear infinite' }} />
+              <p style={{ fontSize: '0.875rem' }}>Loading review queue...</p>
+            </div>
+          ) : fetchError ? (
+            <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+              <AlertCircle size={32} style={{ color: '#f59e0b', marginBottom: '8px' }} />
+              <p style={{ fontSize: '0.85rem', color: '#64748b', maxWidth: '360px', margin: '0 auto 12px' }}>{fetchError}</p>
+              <button onClick={fetchPendingReports} className="btn btn-secondary btn-sm"><RefreshCw size={14} /> Retry</button>
+            </div>
+          ) : pendingReports.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#64748b' }}>
               <CheckCircle2 size={40} style={{ color: '#10b981', marginBottom: '8px' }} />
               <div style={{ fontWeight: 600, fontSize: '1.1rem', color: '#0f172a' }}>
@@ -93,6 +154,7 @@ export function ManagerReviewPage({
               </button>
             </div>
           ) : (
+
             <div className="table-container" style={{ border: 'none' }}>
               <table className="data-table">
                 <thead>

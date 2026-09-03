@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   CheckCircle, 
@@ -14,7 +14,8 @@ import {
   CheckSquare, 
   Columns, 
   Activity,
-  ArrowRight
+  ArrowRight,
+  RefreshCw
 } from 'lucide-react';
 import { StatusBadge } from '../../components/Badge';
 import { 
@@ -24,9 +25,11 @@ import {
   PROJECT_WORKLOAD_DATA, 
   ACTIVITY_FEED 
 } from '../../data/mockData';
+import { dashboardApi } from '../../api/dashboardApi';
+import { reportApi } from '../../api/reportApi';
 
 export function TeamDashboardPage({ 
-  reports, 
+  reports: mockReports, 
   allUsers, 
   projects, 
   onReviewReport, 
@@ -39,28 +42,72 @@ export function TeamDashboardPage({
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [sideBySideModal, setSideBySideModal] = useState(null); // 'blockers' | 'achievements' | null
 
-  // Active team members (excluding admins)
+  // API state
+  const [summary, setSummary] = useState(null);
+  const [memberStatusList, setMemberStatusList] = useState([]);
+  const [tasksTrend, setTasksTrend] = useState(TASKS_TREND_DATA);
+  const [timeDistribution, setTimeDistribution] = useState(TIME_DISTRIBUTION_DATA);
+  const [projectWorkload, setProjectWorkload] = useState(PROJECT_WORKLOAD_DATA);
+  const [activityFeed, setActivityFeed] = useState(ACTIVITY_FEED);
+  const [weekReports, setWeekReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [selectedWeek]);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      // Fetch all dashboard data in parallel
+      const [summaryRes, memberStatusRes, tasksTrendRes, timeDistRes, projectWorkloadRes, activityRes, reportsRes] = await Promise.allSettled([
+        dashboardApi.getSummary(selectedWeek),
+        dashboardApi.getMemberStatus(selectedWeek),
+        dashboardApi.getTasksTrend(6),
+        dashboardApi.getTimeDistribution(selectedWeek),
+        dashboardApi.getProjectWorkload(selectedWeek),
+        dashboardApi.getRecentActivity(10),
+        reportApi.getManagerReports({ page: 0, size: 100 })
+      ]);
+
+      if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value);
+      if (memberStatusRes.status === 'fulfilled') setMemberStatusList(memberStatusRes.value ?? []);
+      if (tasksTrendRes.status === 'fulfilled' && tasksTrendRes.value?.length) setTasksTrend(tasksTrendRes.value);
+      if (timeDistRes.status === 'fulfilled' && timeDistRes.value?.length) setTimeDistribution(timeDistRes.value);
+      if (projectWorkloadRes.status === 'fulfilled' && projectWorkloadRes.value?.length) setProjectWorkload(projectWorkloadRes.value);
+      if (activityRes.status === 'fulfilled' && activityRes.value?.length) setActivityFeed(activityRes.value);
+      if (reportsRes.status === 'fulfilled') {
+        const list = reportsRes.value?.content ?? reportsRes.value ?? [];
+        setWeekReports(list.filter(r => r.weekStart === selectedWeek));
+      }
+    } catch (err) {
+      console.error('Dashboard fetch failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // KPI metrics: prefer live summary from API, fallback to computed from reports
+  const kpiTotalMembers = summary?.totalActiveMembers ?? allUsers.filter(u => u.role === 'ROLE_TEAM_MEMBER').length;
+  const kpiSubmittedCount = summary?.totalReportsSubmitted ?? weekReports.filter(r => r.status === 'SUBMITTED' || r.status === 'APPROVED').length;
+  const kpiComplianceRate = summary?.complianceRate != null ? Math.round(summary.complianceRate) : (kpiTotalMembers > 0 ? Math.round((kpiSubmittedCount / kpiTotalMembers) * 100) : 0);
+  const kpiNeedsCorrection = summary?.needsCorrectionCount ?? weekReports.filter(r => r.status === 'NEEDS_CORRECTION').length;
+  const kpiOpenBlockers = summary?.openBlockersCount ?? weekReports.reduce((count, r) => count + (r.blockers?.length || 0), 0);
+
+  // Member status rows — prefer live API memberStatusList, fallback to mock
   const teamMembers = allUsers.filter(u => u.role === 'ROLE_TEAM_MEMBER');
 
-  // Reports for selected week
-  const weekReports = reports.filter(r => r.weekStart === selectedWeek);
-
-  // Compute status including derived 'NOT_STARTED' for members without a report
-  const memberReportMap = teamMembers.map(member => {
-    const report = weekReports.find(r => r.userId === member.id);
-    return {
-      member,
-      report,
-      derivedStatus: report ? report.status : 'NOT_STARTED'
-    };
-  });
-
-  // Calculate Summary KPI metrics
-  const totalMembers = teamMembers.length;
-  const submittedCount = weekReports.filter(r => r.status === 'SUBMITTED' || r.status === 'APPROVED').length;
-  const complianceRate = totalMembers > 0 ? Math.round((submittedCount / totalMembers) * 100) : 0;
-  const needsCorrectionCount = weekReports.filter(r => r.status === 'NEEDS_CORRECTION').length;
-  const openBlockersCount = weekReports.reduce((count, r) => count + (r.blockers?.length || 0), 0);
+  // Build memberReportMap from live data or mock reports
+  const memberReportMap = memberStatusList.length > 0
+    ? memberStatusList.map(ms => ({
+        member: allUsers.find(u => u.id === ms.userId) || { id: ms.userId, fullName: ms.fullName, email: ms.email, role: 'ROLE_TEAM_MEMBER' },
+        report: weekReports.find(r => r.userId === ms.userId),
+        derivedStatus: ms.reportStatus || 'NOT_STARTED'
+      }))
+    : teamMembers.map(member => {
+        const report = weekReports.find(r => r.userId === member.id) || mockReports.find(r => r.userId === member.id && r.weekStart === selectedWeek);
+        return { member, report, derivedStatus: report ? report.status : 'NOT_STARTED' };
+      });
 
   // Apply dashboard filters
   const filteredMemberRows = memberReportMap.filter(item => {
@@ -69,6 +116,7 @@ export function TeamDashboardPage({
     if (filterStatus !== 'ALL' && item.derivedStatus !== filterStatus) return false;
     return true;
   });
+
 
   return (
     <div className="app-container">
@@ -125,10 +173,10 @@ export function TeamDashboardPage({
               Reports Submitted
             </div>
             <div style={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
-              {submittedCount} / {totalMembers}
+              {kpiSubmittedCount} / {kpiTotalMembers}
             </div>
             <div style={{ fontSize: '0.725rem', color: '#16a34a' }}>
-              {totalMembers - submittedCount === 0 ? 'All reports filed' : `${totalMembers - submittedCount} pending/draft`}
+              {kpiTotalMembers - kpiSubmittedCount === 0 ? 'All reports filed' : `${kpiTotalMembers - kpiSubmittedCount} pending/draft`}
             </div>
           </div>
         </div>
@@ -153,7 +201,7 @@ export function TeamDashboardPage({
               Compliance Rate
             </div>
             <div style={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
-              {complianceRate}%
+              {kpiComplianceRate}%
             </div>
             <div style={{ fontSize: '0.725rem', color: '#64748b' }}>
               Target: 80%+ on-time
@@ -181,7 +229,7 @@ export function TeamDashboardPage({
               Needs Correction
             </div>
             <div style={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
-              {needsCorrectionCount}
+              {kpiNeedsCorrection}
             </div>
             <div style={{ fontSize: '0.725rem', color: '#d97706' }}>
               Requires member resubmit
@@ -209,7 +257,7 @@ export function TeamDashboardPage({
               Open Blockers
             </div>
             <div style={{ fontSize: '1.625rem', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
-              {openBlockersCount}
+              {kpiOpenBlockers}
             </div>
             <div style={{ fontSize: '0.725rem', color: '#dc2626' }}>
               Across team projects
