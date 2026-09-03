@@ -1,6 +1,6 @@
 import React from 'react';
 import { ArrowLeft, Mail, Calendar, Clock, CheckCircle2, FileText, Eye, FolderKanban, Shield } from 'lucide-react';
-import { StatusBadge } from '../components/Badge';
+import { StatusBadge } from '../../components/Badge';
 
 export function MemberProfilePage({ member, reports, projects, onBack, onViewReport }) {
   if (!member) return null;

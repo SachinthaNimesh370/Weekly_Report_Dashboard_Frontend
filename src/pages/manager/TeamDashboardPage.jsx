@@ -16,14 +16,14 @@ import {
   Activity,
   ArrowRight
 } from 'lucide-react';
-import { StatusBadge } from '../components/Badge';
+import { StatusBadge } from '../../components/Badge';
 import { 
   PAST_WEEKS, 
   TASKS_TREND_DATA, 
   TIME_DISTRIBUTION_DATA, 
   PROJECT_WORKLOAD_DATA, 
   ACTIVITY_FEED 
-} from '../data/mockData';
+} from '../../data/mockData';
 
 export function TeamDashboardPage({ 
   reports, 
