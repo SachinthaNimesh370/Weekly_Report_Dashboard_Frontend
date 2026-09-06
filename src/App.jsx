@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { muiTheme } from './theme/muiTheme';
@@ -15,26 +15,97 @@ import { MemberProfilePage } from './pages/manager/MemberProfilePage';
 import { ProjectsPage } from './pages/projects/ProjectsPage';
 import { UserManagementPage } from './pages/users/UserManagementPage';
 
-import { 
-  INITIAL_USERS, 
-  INITIAL_PROJECTS, 
-  INITIAL_REPORTS, 
-  REPORT_VERSIONS, 
-  ACTIVITY_FEED 
-} from './data/mockData';
+import { projectApi } from './api/projectApi';
+import { reportApi } from './api/reportApi';
+import { dashboardApi } from './api/dashboardApi';
 
 export function App() {
-  // Global State
-  const [users, setUsers] = useState(INITIAL_USERS);
-  const [projects, setProjects] = useState(INITIAL_PROJECTS);
-  const [reports, setReports] = useState(INITIAL_REPORTS);
-  const [currentUser, setCurrentUser] = useState(INITIAL_USERS[2]); // Default: Alex Chen (Team Member)
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  // Global State - only populated from the database
+  const [users, setUsers] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [reports, setReports] = useState([]);
+
+  // Session state from localStorage
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) return JSON.parse(savedUser);
+    } catch (e) {
+      console.error('Failed to parse saved user:', e);
+    }
+    return null;
+  });
+
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return Boolean(localStorage.getItem('token') && localStorage.getItem('user'));
+  });
 
   // Navigation & Active items
-  const [activeView, setActiveView] = useState('my-report'); // 'my-report' | 'history' | 'detail' | 'dashboard' | 'review-list' | 'profile' | 'projects' | 'users'
+  const [activeView, setActiveView] = useState(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        const u = JSON.parse(savedUser);
+        return u.role === 'ROLE_TEAM_MEMBER' ? 'my-report' : 'dashboard';
+      } catch (e) {}
+    }
+    return 'my-report';
+  });
   const [selectedReport, setSelectedReport] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
+
+  // Fetch real data from database
+  const refreshDatabaseData = useCallback(async (userObj) => {
+    const user = userObj || currentUser;
+    if (!user) return;
+    const isManagerOrAdmin = user.role === 'ROLE_MANAGER' || user.role === 'ROLE_ADMIN';
+
+    try {
+      // 1. Fetch real projects from DB
+      const projectsList = isManagerOrAdmin
+        ? await projectApi.getAllProjects()
+        : await projectApi.getActiveProjects();
+      setProjects(projectsList || []);
+
+      // 2. Fetch real reports from DB
+      if (isManagerOrAdmin) {
+        const res = await reportApi.getManagerReports({ page: 0, size: 100 });
+        const list = res?.content ?? res ?? [];
+        setReports(list);
+
+        // Fetch team members from manager status endpoint
+        try {
+          const statusList = await dashboardApi.getMemberStatus();
+          if (Array.isArray(statusList)) {
+            const memberUsers = statusList.map(m => ({
+              id: m.userId,
+              fullName: m.fullName,
+              email: m.email,
+              role: 'ROLE_TEAM_MEMBER',
+              roleName: 'Team Member',
+              isActive: true,
+              avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(m.fullName)}&background=2563eb&color=fff`
+            }));
+            setUsers(memberUsers);
+          }
+        } catch (err) {
+          console.warn('Could not fetch members:', err);
+        }
+      } else {
+        const res = await reportApi.getMyReports({ page: 0, size: 50 });
+        const list = res?.content ?? res ?? [];
+        setReports(list);
+      }
+    } catch (err) {
+      console.error('Error refreshing database data:', err);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (isAuthenticated && currentUser) {
+      refreshDatabaseData(currentUser);
+    }
+  }, [isAuthenticated, currentUser, refreshDatabaseData]);
 
   // ==========================================
   // Auth & Persona Handlers
@@ -47,10 +118,18 @@ export function App() {
     } else {
       setActiveView('dashboard');
     }
+    refreshDatabaseData(user);
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setCurrentUser(null);
     setIsAuthenticated(false);
+    setReports([]);
+    setProjects([]);
+    setUsers([]);
+    setSelectedReport(null);
   };
 
   const handleSwitchUser = (user) => {
@@ -61,6 +140,7 @@ export function App() {
     } else {
       setActiveView('dashboard');
     }
+    refreshDatabaseData(user);
   };
 
   // ==========================================

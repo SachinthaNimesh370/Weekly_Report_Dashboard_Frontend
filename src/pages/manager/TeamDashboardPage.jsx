@@ -18,37 +18,33 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { StatusBadge } from '../../components/Badge';
-import { 
-  PAST_WEEKS, 
-  TASKS_TREND_DATA, 
-  TIME_DISTRIBUTION_DATA, 
-  PROJECT_WORKLOAD_DATA, 
-  ACTIVITY_FEED 
-} from '../../data/mockData';
+import { getPastWeeks } from '../../utils/dateUtils';
 import { dashboardApi } from '../../api/dashboardApi';
 import { reportApi } from '../../api/reportApi';
 
+const pastWeeks = getPastWeeks(8);
+
 export function TeamDashboardPage({ 
-  reports: mockReports, 
-  allUsers, 
-  projects, 
+  reports: parentReports = [], 
+  allUsers = [], 
+  projects = [], 
   onReviewReport, 
   onViewReport, 
   onViewMemberProfile 
 }) {
-  const [selectedWeek, setSelectedWeek] = useState(PAST_WEEKS[0].start);
+  const [selectedWeek, setSelectedWeek] = useState(pastWeeks[0].start);
   const [filterMember, setFilterMember] = useState('ALL');
   const [filterProject, setFilterProject] = useState('ALL');
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [sideBySideModal, setSideBySideModal] = useState(null); // 'blockers' | 'achievements' | null
 
-  // API state
+  // API state - pure database data
   const [summary, setSummary] = useState(null);
   const [memberStatusList, setMemberStatusList] = useState([]);
-  const [tasksTrend, setTasksTrend] = useState(TASKS_TREND_DATA);
-  const [timeDistribution, setTimeDistribution] = useState(TIME_DISTRIBUTION_DATA);
-  const [projectWorkload, setProjectWorkload] = useState(PROJECT_WORKLOAD_DATA);
-  const [activityFeed, setActivityFeed] = useState(ACTIVITY_FEED);
+  const [tasksTrend, setTasksTrend] = useState([]);
+  const [timeDistribution, setTimeDistribution] = useState([]);
+  const [projectWorkload, setProjectWorkload] = useState([]);
+  const [activityFeed, setActivityFeed] = useState([]);
   const [weekReports, setWeekReports] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -59,7 +55,7 @@ export function TeamDashboardPage({
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // Fetch all dashboard data in parallel
+      // Fetch all dashboard data from EC2 backend
       const [summaryRes, memberStatusRes, tasksTrendRes, timeDistRes, projectWorkloadRes, activityRes, reportsRes] = await Promise.allSettled([
         dashboardApi.getSummary(selectedWeek),
         dashboardApi.getMemberStatus(selectedWeek),
@@ -71,11 +67,11 @@ export function TeamDashboardPage({
       ]);
 
       if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value);
-      if (memberStatusRes.status === 'fulfilled') setMemberStatusList(memberStatusRes.value ?? []);
-      if (tasksTrendRes.status === 'fulfilled' && tasksTrendRes.value?.length) setTasksTrend(tasksTrendRes.value);
-      if (timeDistRes.status === 'fulfilled' && timeDistRes.value?.length) setTimeDistribution(timeDistRes.value);
-      if (projectWorkloadRes.status === 'fulfilled' && projectWorkloadRes.value?.length) setProjectWorkload(projectWorkloadRes.value);
-      if (activityRes.status === 'fulfilled' && activityRes.value?.length) setActivityFeed(activityRes.value);
+      if (memberStatusRes.status === 'fulfilled') setMemberStatusList(Array.isArray(memberStatusRes.value) ? memberStatusRes.value : []);
+      if (tasksTrendRes.status === 'fulfilled') setTasksTrend(Array.isArray(tasksTrendRes.value) ? tasksTrendRes.value : []);
+      if (timeDistRes.status === 'fulfilled') setTimeDistribution(Array.isArray(timeDistRes.value) ? timeDistRes.value : []);
+      if (projectWorkloadRes.status === 'fulfilled') setProjectWorkload(Array.isArray(projectWorkloadRes.value) ? projectWorkloadRes.value : []);
+      if (activityRes.status === 'fulfilled') setActivityFeed(Array.isArray(activityRes.value) ? activityRes.value : []);
       if (reportsRes.status === 'fulfilled') {
         const list = reportsRes.value?.content ?? reportsRes.value ?? [];
         setWeekReports(list.filter(r => r.weekStart === selectedWeek));
@@ -87,27 +83,41 @@ export function TeamDashboardPage({
     }
   };
 
-  // KPI metrics: prefer live summary from API, fallback to computed from reports
-  const kpiTotalMembers = summary?.totalActiveMembers ?? allUsers.filter(u => u.role === 'ROLE_TEAM_MEMBER').length;
+  // KPI metrics: pure live summary from API or reports
+  const kpiTotalMembers = summary?.totalActiveMembers ?? memberStatusList.length;
   const kpiSubmittedCount = summary?.totalReportsSubmitted ?? weekReports.filter(r => r.status === 'SUBMITTED' || r.status === 'APPROVED').length;
   const kpiComplianceRate = summary?.complianceRate != null ? Math.round(summary.complianceRate) : (kpiTotalMembers > 0 ? Math.round((kpiSubmittedCount / kpiTotalMembers) * 100) : 0);
   const kpiNeedsCorrection = summary?.needsCorrectionCount ?? weekReports.filter(r => r.status === 'NEEDS_CORRECTION').length;
   const kpiOpenBlockers = summary?.openBlockersCount ?? weekReports.reduce((count, r) => count + (r.blockers?.length || 0), 0);
 
-  // Member status rows — prefer live API memberStatusList, fallback to mock
-  const teamMembers = allUsers.filter(u => u.role === 'ROLE_TEAM_MEMBER');
+  const TASK_TYPE_COLORS = {
+    DEVELOPMENT: '#2563eb',
+    TESTING: '#10b981',
+    MEETINGS: '#f59e0b',
+    DOCUMENTATION: '#8b5cf6',
+    OTHER: '#64748b'
+  };
 
-  // Build memberReportMap from live data or mock reports
-  const memberReportMap = memberStatusList.length > 0
-    ? memberStatusList.map(ms => ({
-        member: allUsers.find(u => u.id === ms.userId) || { id: ms.userId, fullName: ms.fullName, email: ms.email, role: 'ROLE_TEAM_MEMBER' },
-        report: weekReports.find(r => r.userId === ms.userId),
-        derivedStatus: ms.reportStatus || 'NOT_STARTED'
-      }))
-    : teamMembers.map(member => {
-        const report = weekReports.find(r => r.userId === member.id) || mockReports.find(r => r.userId === member.id && r.weekStart === selectedWeek);
-        return { member, report, derivedStatus: report ? report.status : 'NOT_STARTED' };
-      });
+  const teamMembers = memberStatusList.length > 0 
+    ? memberStatusList.map(ms => ({ id: ms.userId, fullName: ms.fullName })) 
+    : allUsers.filter(u => u.role === 'ROLE_TEAM_MEMBER');
+
+  // Build memberReportMap directly from live API memberStatusList
+  const memberReportMap = memberStatusList.map(ms => {
+    const matchedUser = allUsers.find(u => u.id === ms.userId);
+    return {
+      member: matchedUser || {
+        id: ms.userId,
+        fullName: ms.fullName,
+        email: ms.email,
+        role: 'ROLE_TEAM_MEMBER',
+        roleName: 'Team Member',
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(ms.fullName || 'Member')}&background=2563eb&color=fff`
+      },
+      report: weekReports.find(r => r.userId === ms.userId),
+      derivedStatus: ms.status || ms.reportStatus || 'NOT_STARTED'
+    };
+  });
 
   // Apply dashboard filters
   const filteredMemberRows = memberReportMap.filter(item => {
@@ -279,53 +289,59 @@ export function TeamDashboardPage({
             <div>
               <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <TrendingUp size={16} style={{ color: '#2563eb' }} />
-                Tasks Completed Trend (Last 6 Weeks)
+                Tasks Completed Trend (Recent Weeks)
               </h3>
               <p style={{ fontSize: '0.75rem', color: '#64748b' }}>Planned vs Completed output velocity</p>
             </div>
-            <span style={{ fontSize: '0.75rem', color: '#2563eb', fontWeight: 600 }}>Velocity: +24%</span>
+            <span style={{ fontSize: '0.75rem', color: '#2563eb', fontWeight: 600 }}>Live DB Metrics</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '180px', paddingTop: '1.5rem', paddingBottom: '0.5rem', gap: '12px' }}>
-            {TASKS_TREND_DATA.map((d, i) => {
-              const maxVal = 35;
-              const plannedHeight = (d.planned / maxVal) * 140;
-              const compHeight = (d.completed / maxVal) * 140;
+          {tasksTrend.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#94a3b8', fontSize: '0.85rem' }}>
+              No tasks trend history recorded in the database yet.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '180px', paddingTop: '1.5rem', paddingBottom: '0.5rem', gap: '12px' }}>
+              {tasksTrend.map((d, i) => {
+                const maxVal = Math.max(10, ...tasksTrend.map(t => t.totalTasks || 0));
+                const plannedHeight = ((d.totalTasks || 0) / maxVal) * 140;
+                const compHeight = ((d.completedTasks || 0) / maxVal) * 140;
 
-              return (
-                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '140px' }}>
-                    {/* Planned bar */}
-                    <div 
-                      style={{
-                        width: '14px',
-                        height: `${plannedHeight}px`,
-                        backgroundColor: '#e2e8f0',
-                        borderRadius: '3px 3px 0 0'
-                      }}
-                      title={`Planned: ${d.planned}`}
-                    />
-                    {/* Completed bar */}
-                    <div 
-                      style={{
-                        width: '18px',
-                        height: `${compHeight}px`,
-                        backgroundColor: i === TASKS_TREND_DATA.length - 1 ? '#2563eb' : '#3b82f6',
-                        borderRadius: '3px 3px 0 0'
-                      }}
-                      title={`Completed: ${d.completed}`}
-                    />
+                return (
+                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '140px' }}>
+                      {/* Total tasks bar */}
+                      <div 
+                        style={{
+                          width: '14px',
+                          height: `${Math.max(4, plannedHeight)}px`,
+                          backgroundColor: '#e2e8f0',
+                          borderRadius: '3px 3px 0 0'
+                        }}
+                        title={`Total Tasks: ${d.totalTasks || 0}`}
+                      />
+                      {/* Completed bar */}
+                      <div 
+                        style={{
+                          width: '18px',
+                          height: `${Math.max(compHeight > 0 ? 4 : 0, compHeight)}px`,
+                          backgroundColor: i === tasksTrend.length - 1 ? '#2563eb' : '#3b82f6',
+                          borderRadius: '3px 3px 0 0'
+                        }}
+                        title={`Completed: ${d.completedTasks || 0}`}
+                      />
+                    </div>
+                    <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 500 }}>{d.label || d.weekStart}</span>
                   </div>
-                  <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 500 }}>{d.week}</span>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
 
           <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', borderTop: '1px solid #e2e8f0', paddingTop: '8px', marginTop: '8px', fontSize: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ width: '10px', height: '10px', backgroundColor: '#e2e8f0', borderRadius: '2px' }} />
-              <span style={{ color: '#64748b' }}>Planned Tasks</span>
+              <span style={{ color: '#64748b' }}>Total Tasks</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ width: '10px', height: '10px', backgroundColor: '#2563eb', borderRadius: '2px' }} />
@@ -342,48 +358,57 @@ export function TeamDashboardPage({
                 <Clock size={16} style={{ color: '#059669' }} />
                 Team Time Allocation by Activity
               </h3>
-              <p style={{ fontSize: '0.75rem', color: '#64748b' }}>Total 117 hours recorded this week</p>
-            </div>
-            <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600 }}>Development: 61%</span>
-          </div>
-
-          {/* Stacked bar visualization */}
-          <div style={{ marginTop: '1rem', marginBottom: '1.25rem' }}>
-            <div style={{ height: '28px', width: '100%', display: 'flex', borderRadius: '8px', overflow: 'hidden' }}>
-              {TIME_DISTRIBUTION_DATA.map((t, i) => (
-                <div 
-                  key={i}
-                  style={{
-                    width: `${t.percentage}%`,
-                    backgroundColor: t.color,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#ffffff',
-                    fontSize: '0.725rem',
-                    fontWeight: 600
-                  }}
-                  title={`${t.category}: ${t.hours}h (${t.percentage}%)`}
-                >
-                  {t.percentage > 10 ? `${t.percentage}%` : ''}
-                </div>
-              ))}
+              <p style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                Total {timeDistribution.reduce((sum, t) => sum + (Number(t.totalHours) || 0), 0)} hours recorded this week
+              </p>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-            {TIME_DISTRIBUTION_DATA.map((item, idx) => (
-              <div key={idx} style={{ padding: '8px 10px', backgroundColor: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: item.color }} />
-                  <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#334155' }}>{item.category}</span>
-                </div>
-                <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a' }}>
-                  {item.hours}h <span style={{ color: '#64748b', fontWeight: 400, fontSize: '0.725rem' }}>({item.percentage}%)</span>
+          {timeDistribution.length === 0 || timeDistribution.every(t => (Number(t.totalHours) || 0) === 0) ? (
+            <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#94a3b8', fontSize: '0.85rem' }}>
+              No hours recorded for this week yet.
+            </div>
+          ) : (
+            <>
+              {/* Stacked bar visualization */}
+              <div style={{ marginTop: '1rem', marginBottom: '1.25rem' }}>
+                <div style={{ height: '28px', width: '100%', display: 'flex', borderRadius: '8px', overflow: 'hidden' }}>
+                  {timeDistribution.map((t, i) => (
+                    <div 
+                      key={i}
+                      style={{
+                        width: `${t.percentage || 0}%`,
+                        backgroundColor: TASK_TYPE_COLORS[t.taskType] || '#2563eb',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#ffffff',
+                        fontSize: '0.725rem',
+                        fontWeight: 600
+                      }}
+                      title={`${t.label || t.taskType}: ${t.totalHours}h (${t.percentage || 0}%)`}
+                    >
+                      {(t.percentage || 0) > 10 ? `${t.percentage}%` : ''}
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                {timeDistribution.map((item, idx) => (
+                  <div key={idx} style={{ padding: '8px 10px', backgroundColor: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: TASK_TYPE_COLORS[item.taskType] || '#2563eb' }} />
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#334155' }}>{item.label || item.taskType}</span>
+                    </div>
+                    <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#0f172a' }}>
+                      {item.totalHours || 0}h <span style={{ color: '#64748b', fontWeight: 400, fontSize: '0.725rem' }}>({item.percentage || 0}%)</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Chart 3: Workload Distribution by Project */}
@@ -398,22 +423,28 @@ export function TeamDashboardPage({
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '0.5rem' }}>
-            {PROJECT_WORKLOAD_DATA.map((p, i) => (
-              <div key={i}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '4px' }}>
-                  <span style={{ fontWeight: 600, color: '#0f172a' }}>{p.project}</span>
-                  <span style={{ color: '#64748b' }}>{p.tasks} tasks • {p.totalHours}h ({p.percentage}%)</span>
+          {projectWorkload.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#94a3b8', fontSize: '0.85rem' }}>
+              No project workload recorded for this week yet.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '0.5rem' }}>
+              {projectWorkload.map((p, i) => (
+                <div key={i}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '4px' }}>
+                    <span style={{ fontWeight: 600, color: '#0f172a' }}>{p.projectName || p.name || `Project #${p.projectId}`}</span>
+                    <span style={{ color: '#64748b' }}>{p.tasks || 0} tasks • {p.totalHours || 0}h ({p.percentage || 0}%)</span>
+                  </div>
+                  <div className="progress-bar-track" style={{ height: '8px' }}>
+                    <div 
+                      className="progress-bar-fill" 
+                      style={{ width: `${p.percentage || 0}%`, backgroundColor: p.color || '#2563eb' }} 
+                    />
+                  </div>
                 </div>
-                <div className="progress-bar-track" style={{ height: '8px' }}>
-                  <div 
-                    className="progress-bar-fill" 
-                    style={{ width: `${p.percentage}%`, backgroundColor: p.color }} 
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Chart 4: Recent Review & Submission Activity Feed */}
@@ -428,50 +459,56 @@ export function TeamDashboardPage({
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {ACTIVITY_FEED.map((act) => (
-              <div 
-                key={act.id} 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'space-between', 
-                  padding: '8px 10px', 
-                  backgroundColor: '#f8fafc', 
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid #e2e8f0'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    backgroundColor: act.type === 'APPROVED' ? '#10b981' : act.type === 'CORRECTION_REQUESTED' ? '#f59e0b' : '#2563eb'
-                  }} />
-                  <div>
-                    <div style={{ fontSize: '0.8125rem', color: '#0f172a' }}>
-                      <strong>{act.user}</strong> {act.action}
-                    </div>
-                    <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
-                      {act.project} • {act.time}
+          {activityFeed.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#94a3b8', fontSize: '0.85rem' }}>
+              No recent activity recorded yet.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {activityFeed.map((act) => (
+                <div 
+                  key={act.id} 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    padding: '8px 10px', 
+                    backgroundColor: '#f8fafc', 
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid #e2e8f0'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: act.type === 'APPROVED' ? '#10b981' : act.type === 'CORRECTION_REQUESTED' ? '#f59e0b' : '#2563eb'
+                    }} />
+                    <div>
+                      <div style={{ fontSize: '0.8125rem', color: '#0f172a' }}>
+                        <strong>{act.user || act.userName}</strong> {act.action || act.description}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                        {act.project || act.projectName} • {act.time || act.timestamp}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <button
-                  onClick={() => {
-                    const r = reports.find(item => item.id === act.reportId);
-                    if (r) onViewReport(r);
-                  }}
-                  className="btn btn-secondary btn-sm"
-                  style={{ padding: '2px 6px', fontSize: '0.7rem' }}
-                >
-                  View
-                </button>
-              </div>
-            ))}
-          </div>
+                  <button
+                    onClick={() => {
+                      const r = weekReports.find(item => item.id === act.reportId) || parentReports.find(item => item.id === act.reportId);
+                      if (r) onViewReport(r);
+                    }}
+                    className="btn btn-secondary btn-sm"
+                    style={{ padding: '2px 6px', fontSize: '0.7rem' }}
+                  >
+                    View
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -506,7 +543,7 @@ export function TeamDashboardPage({
               value={selectedWeek}
               onChange={(e) => setSelectedWeek(e.target.value)}
             >
-              {PAST_WEEKS.map(w => (
+              {pastWeeks.map(w => (
                 <option key={w.start} value={w.start}>{w.label}</option>
               ))}
             </select>

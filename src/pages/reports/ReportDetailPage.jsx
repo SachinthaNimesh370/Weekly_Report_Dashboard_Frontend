@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -12,14 +12,22 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { StatusBadge, PriorityBadge, TaskStatusBadge } from '../../components/Badge';
-import { REPORT_VERSIONS } from '../../data/mockData';
+import { reportApi } from '../../api/reportApi';
 
 export function ReportDetailPage({ report, onBack, currentUser, onNavigateToReview }) {
   const [activeVersion, setActiveVersion] = useState(null);
-  
-  if (!report) return null;
+  const [versions, setVersions] = useState([]);
 
-  const versions = REPORT_VERSIONS[report.id] || [];
+  useEffect(() => {
+    if (report?.id) {
+      reportApi.getReportVersions(report.id)
+        .then(res => setVersions(Array.isArray(res) ? res : []))
+        .catch(err => {
+          console.warn('Could not fetch report versions:', err);
+          setVersions([]);
+        });
+    }
+  }, [report?.id]);
   const keyIssue = report.blockers?.find(b => b.isKeyIssue);
   const keyAchieve = report.achievements?.find(a => a.isKeyAchievement);
   const isManagerOrAdmin = currentUser.role === 'ROLE_MANAGER' || currentUser.role === 'ROLE_ADMIN';

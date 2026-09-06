@@ -16,14 +16,12 @@ import {
 
 import { reportApi } from '../../api/reportApi';
 import { StatusBadge, PriorityBadge, TaskStatusBadge } from '../../components/Badge';
-
-
-
+import { getMonday, getSunday } from '../../utils/dateUtils';
 
 export function PersonalReportPage({ 
   reportToEdit, 
   currentUser, 
-  projects, 
+  projects = [], 
   onSaveDraft, 
   onSubmitReport, 
   onBackToHistory 
@@ -33,61 +31,75 @@ export function PersonalReportPage({
   const status = reportToEdit ? reportToEdit.status : 'DRAFT';
   const isReadOnly = status === 'SUBMITTED' || status === 'APPROVED';
 
-  const [projectId, setProjectId] = useState(reportToEdit ? reportToEdit.projectId : (projects[0]?.id || 1));
-  const [weekStart, setWeekStart] = useState(reportToEdit ? reportToEdit.weekStart : '2026-09-07');
-  const [weekEnd, setWeekEnd] = useState(reportToEdit ? reportToEdit.weekEnd : '2026-09-13');
-  const [tasksPlannedNextWeek, setTasksPlannedNextWeek] = useState(reportToEdit ? reportToEdit.tasksPlannedNextWeek : '');
-  const [notes, setNotes] = useState(reportToEdit ? reportToEdit.notes : '');
+  const defaultStart = getMonday();
+  const defaultEnd = getSunday(defaultStart);
 
-  // Task entries
-  const [taskEntries, setTaskEntries] = useState(
-    reportToEdit?.taskEntries || [
-      {
-        id: 1,
-        taskName: 'Implement core business workflow endpoints',
-        priority: 'HIGH',
-        plannedPct: 100,
-        actualPct: 90,
-        status: 'IN_PROGRESS',
-        timePlannedHrs: 16.0,
-        timeSpentHrs: 15.0,
-        outputDeliverable: 'Integration tests passing with mock service layer'
-      }
-    ]
-  );
+  const [projectId, setProjectId] = useState(reportToEdit?.projectId || (projects[0]?.id || ''));
+  const [weekStart, setWeekStart] = useState(reportToEdit?.weekStart || defaultStart);
+  const [weekEnd, setWeekEnd] = useState(reportToEdit?.weekEnd || defaultEnd);
+  const [tasksPlannedNextWeek, setTasksPlannedNextWeek] = useState(reportToEdit?.tasksPlannedNextWeek || '');
+  const [notes, setNotes] = useState(reportToEdit?.notes || '');
 
-  // Blockers with isKeyIssue
-  const [blockers, setBlockers] = useState(
-    reportToEdit?.blockers || [
-      { id: 1, description: 'Pending client security approvals for test database credentials', isKeyIssue: true }
-    ]
-  );
+  // Task entries - clean empty array unless editing an existing report
+  const [taskEntries, setTaskEntries] = useState(reportToEdit?.taskEntries || []);
 
-  // Achievements with isKeyAchievement
-  const [achievements, setAchievements] = useState(
-    reportToEdit?.achievements || [
-      { id: 1, description: 'Achieved 95% test coverage on authentication & RBAC filter layer', isKeyAchievement: true }
-    ]
-  );
+  // Blockers - clean empty array unless editing
+  const [blockers, setBlockers] = useState(reportToEdit?.blockers || []);
 
-  // Hours breakdown
+  // Achievements - clean empty array unless editing
+  const [achievements, setAchievements] = useState(reportToEdit?.achievements || []);
+
+  // Hours breakdown - initialized to 0 unless editing
   const [hoursDevelopment, setHoursDevelopment] = useState(
-    reportToEdit?.hoursBreakdowns?.find(h => h.taskType === 'DEVELOPMENT')?.hours || 24
+    reportToEdit?.hoursBreakdowns?.find(h => h.taskType === 'DEVELOPMENT')?.hours || 0
   );
   const [hoursTesting, setHoursTesting] = useState(
-    reportToEdit?.hoursBreakdowns?.find(h => h.taskType === 'TESTING')?.hours || 6
+    reportToEdit?.hoursBreakdowns?.find(h => h.taskType === 'TESTING')?.hours || 0
   );
   const [hoursMeetings, setHoursMeetings] = useState(
-    reportToEdit?.hoursBreakdowns?.find(h => h.taskType === 'MEETINGS')?.hours || 4
+    reportToEdit?.hoursBreakdowns?.find(h => h.taskType === 'MEETINGS')?.hours || 0
   );
   const [hoursDocumentation, setHoursDocumentation] = useState(
-    reportToEdit?.hoursBreakdowns?.find(h => h.taskType === 'DOCUMENTATION')?.hours || 2
+    reportToEdit?.hoursBreakdowns?.find(h => h.taskType === 'DOCUMENTATION')?.hours || 0
   );
   const [hoursOther, setHoursOther] = useState(
     reportToEdit?.hoursBreakdowns?.find(h => h.taskType === 'OTHER')?.hours || 0
   );
 
   const [notification, setNotification] = useState(null);
+
+  // Sync state whenever reportToEdit or projects change
+  useEffect(() => {
+    if (reportToEdit) {
+      setProjectId(reportToEdit.projectId || (projects[0]?.id || ''));
+      setWeekStart(reportToEdit.weekStart || defaultStart);
+      setWeekEnd(reportToEdit.weekEnd || defaultEnd);
+      setTasksPlannedNextWeek(reportToEdit.tasksPlannedNextWeek || '');
+      setNotes(reportToEdit.notes || '');
+      setTaskEntries(reportToEdit.taskEntries || []);
+      setBlockers(reportToEdit.blockers || []);
+      setAchievements(reportToEdit.achievements || []);
+      setHoursDevelopment(reportToEdit.hoursBreakdowns?.find(h => h.taskType === 'DEVELOPMENT')?.hours || 0);
+      setHoursTesting(reportToEdit.hoursBreakdowns?.find(h => h.taskType === 'TESTING')?.hours || 0);
+      setHoursMeetings(reportToEdit.hoursBreakdowns?.find(h => h.taskType === 'MEETINGS')?.hours || 0);
+      setHoursDocumentation(reportToEdit.hoursBreakdowns?.find(h => h.taskType === 'DOCUMENTATION')?.hours || 0);
+      setHoursOther(reportToEdit.hoursBreakdowns?.find(h => h.taskType === 'OTHER')?.hours || 0);
+    } else {
+      setProjectId(projects[0]?.id || '');
+      setWeekStart(defaultStart);
+      setWeekEnd(defaultEnd);
+      setTasksPlannedNextWeek('');
+      setNotes('');
+      setTaskEntries([]);
+      setBlockers([]);
+      setAchievements([]);
+      setHoursDevelopment(0);
+      setHoursTesting(0);
+      setHoursMeetings(0);
+      setHoursDocumentation(0);
+      setHoursOther(0);
+    }
+  }, [reportToEdit, projects]);
 
   // Task entries handlers
   const handleAddTask = () => {
@@ -383,11 +395,15 @@ export function PersonalReportPage({
                 onChange={(e) => setProjectId(e.target.value)}
                 disabled={isReadOnly}
               >
-                {projects.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} {p.isActive ? '' : '(Inactive)'}
-                  </option>
-                ))}
+                {projects.length === 0 ? (
+                  <option value="">No projects found (Admin must create a project first)</option>
+                ) : (
+                  projects.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} {p.isActive === false ? '(Inactive)' : ''}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
           </div>
@@ -423,7 +439,14 @@ export function PersonalReportPage({
                 </tr>
               </thead>
               <tbody>
-                {taskEntries.map((task) => (
+                {taskEntries.length === 0 ? (
+                  <tr>
+                    <td colSpan={isReadOnly ? 6 : 7} style={{ textAlign: 'center', padding: '2.5rem 1rem', color: '#94a3b8' }}>
+                      No tasks added yet. Click <strong>"+ Add Task"</strong> above to record your deliverables.
+                    </td>
+                  </tr>
+                ) : (
+                  taskEntries.map((task) => (
                   <tr key={task.id}>
                     <td>
                       {isReadOnly ? (
@@ -581,7 +604,7 @@ export function PersonalReportPage({
                       </td>
                     )}
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>

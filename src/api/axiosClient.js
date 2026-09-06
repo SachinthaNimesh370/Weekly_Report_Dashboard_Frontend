@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://52.66.241.245:8080';
 
 export const axiosClient = axios.create({
   baseURL: API_BASE_URL,
@@ -41,7 +41,10 @@ axiosClient.interceptors.response.use(
       error.message || 
       'A network error occurred. Please check if the backend server is running.';
 
-    return Promise.reject(new Error(errorMessage));
+    const customError = new Error(errorMessage);
+    customError.response = error.response;
+    customError.status = error.response?.status;
+    return Promise.reject(customError);
   }
 );
 

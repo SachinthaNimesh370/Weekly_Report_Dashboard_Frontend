@@ -39,7 +39,7 @@ export function MemberProfilePage({ member, reports, projects, onBack, onViewRep
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <img
-              src={member.avatar}
+              src={member.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.fullName || 'Member')}&background=2563eb&color=fff`}
               alt={member.fullName}
               style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e2e8f0' }}
             />
@@ -171,7 +171,7 @@ export function MemberProfilePage({ member, reports, projects, onBack, onViewRep
                     </td>
                     <td>{r.projectName}</td>
                     <td>{r.taskEntries?.length || 0} tasks</td>
-                    <td><strong style={{ color: '#2563eb' }}>{r.totalHours || 32}h</strong></td>
+                    <td><strong style={{ color: '#2563eb' }}>{r.totalHours ?? 0}h</strong></td>
                     <td><StatusBadge status={r.status} /></td>
                     <td style={{ textAlign: 'right' }}>
                       <button
