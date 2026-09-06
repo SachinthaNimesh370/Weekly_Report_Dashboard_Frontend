@@ -5,6 +5,7 @@
 [![Tailwind / Vanilla CSS](https://img.shields.io/badge/Styling-Custom%20Design%20System-38B2AC)](https://developer.mozilla.org/en-US/docs/Web/CSS)
 [![CI/CD](https://img.shields.io/badge/GitHub%20Actions-Automated%20Deploy-2088FF?logo=github-actions&logoColor=white)](https://github.com/features/actions)
 [![AWS EC2](https://img.shields.io/badge/AWS%20EC2-Live%20Production-FF9900?logo=amazonec2&logoColor=white)](https://aws.amazon.com/ec2/)
+[![AWS RDS](https://img.shields.io/badge/AWS%20RDS-MySQL%208.0-527FFF?logo=amazonrds&logoColor=white)](https://aws.amazon.com/rds/)
 [![Google Gemini](https://img.shields.io/badge/AI%20Assistant-Gemini%20Flash-8E75B2?logo=google&logoColor=white)](https://ai.google.dev/)
 [![Live App](https://img.shields.io/badge/Live%20App-http://3.6.126.90/-brightgreen?logo=nginx&logoColor=white)](http://3.6.126.90/)
 
@@ -51,7 +52,7 @@ graph TD
     end
 
     Axios -->|JSON over HTTP| Backend[Spring Boot 3 REST API :8080]
-    Backend --> DB[(MySQL Relational Database)]
+    Backend --> RDS[(AWS RDS — MySQL 8.0)]
     Backend --> GeminiAPI[Google Gemini 3.8 Flash LLM]
 ```
 
@@ -65,6 +66,7 @@ The application is connected to production AWS EC2 instances:
 | :--- | :--- | :--- |
 | **🌐 Frontend (Live)** | [`http://3.6.126.90/`](http://3.6.126.90/) | React SPA served via Nginx on AWS EC2 |
 | **⚙️ Backend API** | `http://52.66.241.245:8080` | Spring Boot 3 REST API with MySQL |
+| **🗄️ Database** | AWS RDS (MySQL 8.0) | Managed relational database on Amazon RDS (separate from EC2) |
 
 > 💡 **Quick Access**: Open [http://3.6.126.90/](http://3.6.126.90/) in your browser and log in with any of the seeded credentials below.
 
