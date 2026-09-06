@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Lock, Mail, User, Shield, CheckCircle2, ArrowRight, Loader2 } from 'lucide-react';
+import { Lock, Mail, User, Shield, CheckCircle2, Loader2 } from 'lucide-react';
 import { authApi } from '../../api/authApi';
 
 export function AuthPage({ onLogin, allUsers }) {
   const [isRegister, setIsRegister] = useState(false);
-  const [email, setEmail] = useState('member@weeklyreport.com');
-  const [password, setPassword] = useState('Member@123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState('ROLE_TEAM_MEMBER');
   const [error, setError] = useState('');
@@ -69,37 +69,6 @@ export function AuthPage({ onLogin, allUsers }) {
     }
   };
 
-  const handleQuickLogin = async (targetEmail, targetPassword) => {
-    setError('');
-    setEmail(targetEmail);
-    setPassword(targetPassword);
-    setLoading(true);
-
-    try {
-      const data = await authApi.login({ email: targetEmail, password: targetPassword });
-      const loggedInUser = {
-        id: data.id,
-        fullName: data.fullName,
-        email: data.email,
-        role: data.role,
-        roleName: data.role === 'ROLE_ADMIN' ? 'Admin' : data.role === 'ROLE_MANAGER' ? 'Manager' : 'Team Member',
-        token: data.token,
-        isActive: true,
-        avatar: data.role === 'ROLE_ADMIN' 
-          ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80'
-          : data.role === 'ROLE_MANAGER'
-          ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80'
-          : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80'
-      };
-      onLogin(loggedInUser);
-    } catch (err) {
-      console.error('Quick login error:', err);
-      setError(err.message || 'Failed to authenticate seed account.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div style={{
       minHeight: '100vh',
@@ -137,72 +106,6 @@ export function AuthPage({ onLogin, allUsers }) {
       </div>
 
       <div style={{ width: '100%', maxWidth: '440px' }}>
-        {/* Quick Demo Logins Helper */}
-        <div style={{
-          backgroundColor: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: 'var(--radius-md)',
-          padding: '1rem 1.25rem',
-          marginBottom: '1.25rem',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-        }}>
-          <div style={{
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            color: '#2563eb',
-            marginBottom: '0.75rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}>
-            <Shield size={14} />
-            Quick Demo Logins (Seed Accounts)
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <button
-              onClick={() => handleQuickLogin('chamara.f@sisenco.lk', 'Password@123')}
-              disabled={loading}
-              className="btn btn-secondary btn-sm"
-              style={{ justifyContent: 'space-between', padding: '8px 12px' }}
-            >
-              <div style={{ textAlign: 'left' }}>
-                <span style={{ fontWeight: 600, color: '#0f172a' }}>Chamara Fernando</span>
-                <span style={{ color: '#64748b', fontSize: '0.75rem', marginLeft: '6px' }}>Team Member</span>
-              </div>
-              <ArrowRight size={14} style={{ color: '#2563eb' }} />
-            </button>
-
-            <button
-              onClick={() => handleQuickLogin('nuwan.silva@sisenco.lk', 'Password@123')}
-              disabled={loading}
-              className="btn btn-secondary btn-sm"
-              style={{ justifyContent: 'space-between', padding: '8px 12px' }}
-            >
-              <div style={{ textAlign: 'left' }}>
-                <span style={{ fontWeight: 600, color: '#0f172a' }}>Nuwan Silva</span>
-                <span style={{ color: '#64748b', fontSize: '0.75rem', marginLeft: '6px' }}>Manager</span>
-              </div>
-              <ArrowRight size={14} style={{ color: '#2563eb' }} />
-            </button>
-
-            <button
-              onClick={() => handleQuickLogin('admin@sisenco.lk', 'Password@123')}
-              disabled={loading}
-              className="btn btn-secondary btn-sm"
-              style={{ justifyContent: 'space-between', padding: '8px 12px' }}
-            >
-              <div style={{ textAlign: 'left' }}>
-                <span style={{ fontWeight: 600, color: '#0f172a' }}>Sachintha Nimesh</span>
-                <span style={{ color: '#64748b', fontSize: '0.75rem', marginLeft: '6px' }}>Admin</span>
-              </div>
-              <ArrowRight size={14} style={{ color: '#2563eb' }} />
-            </button>
-          </div>
-        </div>
-
         {/* Auth Form Card */}
         <div className="card" style={{ padding: '1.75rem' }}>
           <div className="tabs-nav" style={{ marginBottom: '1.5rem' }}>
