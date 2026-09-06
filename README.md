@@ -1,75 +1,189 @@
-# 📊 Sisenco Weekly Report & Team Dashboard
+# 📊 Sisenco Weekly Report Generator & Consolidated Team Dashboard
 
-An enterprise-grade **Weekly Report Generator and Consolidated Team Dashboard** built with **React (Vite)**, **Vanilla CSS**, and **Spring Boot REST API**. 
+[![React](https://img.shields.io/badge/React-19.2-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-8.2-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Tailwind / Vanilla CSS](https://img.shields.io/badge/Styling-Custom%20Design%20System-38B2AC)](https://developer.mozilla.org/en-US/docs/Web/CSS)
+[![CI/CD](https://img.shields.io/badge/GitHub%20Actions-Automated%20Deploy-2088FF?logo=github-actions&logoColor=white)](https://github.com/features/actions)
+[![AWS EC2](https://img.shields.io/badge/AWS%20EC2-Live%20Production-FF9900?logo=amazonec2&logoColor=white)](https://aws.amazon.com/ec2/)
+[![Google Gemini](https://img.shields.io/badge/AI%20Assistant-Gemini%20Flash-8E75B2?logo=google&logoColor=white)](https://ai.google.dev/)
 
-The frontend connects to a live AWS EC2 backend database (`http://52.66.241.245:8080`), providing automated weekly reporting workflows, team compliance tracking, and project workload analytics.
+An enterprise-grade **Weekly Report Generator and Consolidated Team Dashboard** developed for Sisenco Engineering. Built with **React 19**, **Vite**, and a bespoke **Design System**, integrated with a Spring Boot 3 REST API deployed on AWS EC2.
 
----
-
-## 🚀 Live Backend Deployment
-
-- **Backend Base URL**: `http://52.66.241.245:8080`
-- **Architecture**: Spring Boot 3 with JWT Security, Hibernate/JPA, and MySQL Database.
-- **Frontend CI/CD**: Automated deployment to AWS EC2 via GitHub Actions (`.github/workflows/deploy.yml`).
-
----
-
-## 🔐 Demo Login Credentials (Seeded Sri Lankan Accounts)
-
-All accounts are pre-seeded and active in the live EC2 database with the universal password: **`Password@123`**
-
-### 1. System Administrator
-| Name | Email | Password | Role | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| **Sachintha Nimesh** | `admin@sisenco.lk` | `Password@123` | `ROLE_ADMIN` | Full administrative control, user provisioning, project creation & deletions |
-
-### 2. Engineering Lead / Manager
-| Name | Email | Password | Role | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| **Nuwan Silva** | `nuwan.silva@sisenco.lk` | `Password@123` | `ROLE_MANAGER` | Consolidated team dashboard, report reviews, change requests & approvals |
-
-### 3. Engineering Team Members
-| Name | Email | Password | Role | Assigned Focus Area |
-| :--- | :--- | :--- | :--- | :--- |
-| **Chamara Fernando** | `chamara.f@sisenco.lk` | `Password@123` | `ROLE_TEAM_MEMBER` | Senior Fullstack Engineer *(Commercial Bank App)* |
-| **Dilshan Jayawardena** | `dilshan.j@sisenco.lk` | `Password@123` | `ROLE_TEAM_MEMBER` | Backend & Cloud Engineer *(e-Channelling Platform)* |
-| **Kavindi Wickramasinghe** | `kavindi.w@sisenco.lk` | `Password@123` | `ROLE_TEAM_MEMBER` | QA & Test Automation Specialist *(Cypress / OWASP)* |
-| **Tharindu Rajapaksha** | `tharindu.r@sisenco.lk` | `Password@123` | `ROLE_TEAM_MEMBER` | Frontend React Engineer *(Dialog Axiata IoT)* |
-| **Anuki Senanayake** | `anuki.s@sisenco.lk` | `Password@123` | `ROLE_TEAM_MEMBER` | UI & Mobile Apps Engineer *(SLT Fiber App)* |
-> 💡 **Sign-In**: Use any of the pre-seeded credentials above to log in and test role-based access for Admin, Manager, or Team Member, or register a new account via the **Create Account** tab.
+The application automates weekly reporting workflows, personal draft saving, manager review/correction cycles, team compliance analytics, project tracking, user lifecycle management, and includes an intelligent **Google Gemini-powered AI Assistant**.
 
 ---
 
-## 📂 Active Enterprise Projects in Database
+## 📑 Table of Contents
+- [System Architecture](#-system-architecture)
+- [Live Backend & Credentials](#-live-backend--credentials)
+- [Key Features](#-key-features)
+  - [1. Personal Weekly Report Management](#1-personal-weekly-report-management)
+  - [2. Consolidated Team Dashboard](#2-consolidated-team-dashboard)
+  - [3. Manager Review & Correction Workflow](#3-manager-review--correction-workflow)
+  - [4. Project Lifecycle & Allocation](#4-project-lifecycle--allocation)
+  - [5. User Administration & Instant Deactivation](#5-user-administration--instant-deactivation)
+  - [6. AI Chat Assistant (Section 8)](#6-ai-chat-assistant-section-8)
+- [Role-Based Access Control (RBAC)](#-role-based-access-control-rbac)
+- [Project Structure](#-project-structure)
+- [Local Development Setup](#-local-development-setup)
+- [CI/CD & AWS Deployment](#-cicd--aws-deployment)
+- [Security & Compliance](#-security--compliance)
 
-1. **Commercial Bank Mobile Banking App Revamp**
-   - *LankaQR EMV standard payment integration, biometric auth, and CBSL compliance.*
-2. **e-Channelling Telemedicine & Doctor Booking Platform**
-   - *Digital healthcare consultation, prescription sync, and hospital slot scheduling.*
-3. **Dialog Axiata Enterprise IoT & Telemetry System**
-   - *Industrial IoT telemetry ingestion, live SVG gauges, and automated sensor alerting.*
-4. **Sri Lanka Telecom (SLT) Fiber Self-Care App**
-   - *Fiber connection diagnostics, bill payments, and package upgrade engine.*
+---
+
+## 🏛 System Architecture
+
+```mermaid
+graph TD
+    User([User Browser]) -->|HTTPS / HTTP| Nginx[Nginx Web Server on AWS EC2]
+    Nginx -->|Serves Static Assets| ReactApp[React 19 SPA]
+    ReactApp -->|REST API Calls + JWT Bearer| Axios[Axios API Client Layer]
+    
+    subgraph Frontend Architecture
+        ReactApp --> Router[View Router]
+        Router --> PersonalReport[Personal Weekly Report Page]
+        Router --> TeamDash[Consolidated Team Dashboard]
+        Router --> ManagerRev[Manager Review Workflow]
+        Router --> Projects[Project Management]
+        Router --> Users[User Administration]
+        ReactApp --> AiWidget[AI Chat Assistant Widget]
+    end
+
+    Axios -->|JSON over HTTP| Backend[Spring Boot 3 REST API :8080]
+    Backend --> DB[(MySQL Relational Database)]
+    Backend --> GeminiAPI[Google Gemini 3.8 Flash LLM]
+```
+
+---
+
+## 🚀 Live Backend & Credentials
+
+The application is connected to a production AWS EC2 instance:
+- **API Base URL**: `http://52.66.241.245:8080`
+- **Frontend Hosting**: AWS EC2 with Nginx reverse-proxy (`/var/www/weekly-report/`)
+
+### 🔐 Seeded Demonstration Accounts
+All accounts are active in the live EC2 database with universal password: **`Password@123`**
+
+| Role | Name | Email | Focus / Responsibility |
+| :--- | :--- | :--- | :--- |
+| **System Administrator** | **Sachintha Nimesh** | `admin@sisenco.lk` | Full system governance, user deactivation, role assignments, project creation |
+| **Engineering Lead** | **Nuwan Silva** | `nuwan.silva@sisenco.lk` | Team dashboard, report reviews, approvals, change requests, team workload monitoring |
+| **Team Member** | **Chamara Fernando** | `chamara.f@sisenco.lk` | Senior Fullstack Engineer *(Commercial Bank Mobile App)* |
+| **Team Member** | **Dilshan Jayawardena** | `dilshan.j@sisenco.lk` | Backend & Cloud Engineer *(e-Channelling Telemedicine)* |
+| **Team Member** | **Kavindi Wickramasinghe** | `kavindi.w@sisenco.lk` | QA & Automation Specialist *(Commercial Bank App)* |
+| **Team Member** | **Tharindu Rajapaksha** | `tharindu.r@sisenco.lk` | Frontend Engineer *(Dialog Axiata IoT)* |
+| **Team Member** | **Anuki Senanayake** | `anuki.s@sisenco.lk` | UI & Mobile Apps Engineer *(SLT Fiber App)* |
 
 ---
 
 ## ✨ Key Features
 
-- **Personal Weekly Report Form**: Dynamic Monday–Sunday week cycles, task entries with planned vs. actual progress, task type breakdowns (Development, Testing, Meetings, Documentation), blockers, and key achievements.
-- **Version Control & Draft Management**: Auto-saving drafts, edit existing submissions, version incrementing on re-submission, and manager revision history.
-- **Consolidated Team Dashboard**: Real-time team compliance rate, active submissions, open blockers count, hours distribution charts, and member status cards.
-- **Manager Review Workflow**: Side-by-side report inspection, 1-click approval, and formal change requests with inline comments.
-- **Project & Category Management**: Full project lifecycle management (Create, Edit, Activate/Deactivate, Delete) and team member assignments.
-- **User & Role Administration**: Real-time user directory, role assignments (`ROLE_ADMIN`, `ROLE_MANAGER`, `ROLE_TEAM_MEMBER`), and account status toggles.
-- **Zero Mock Data Leaks**: 100% data driven from the live EC2 backend database with graceful empty states.
+### 1. Personal Weekly Report Management
+- **Dynamic Weekly Cycle**: Automatically computes standard Monday-to-Sunday work weeks with intuitive week-picker navigation.
+- **Granular Task Entries**: Add planned vs. actual tasks categorized by type:
+  - `DEVELOPMENT` | `TESTING` | `MEETINGS` | `DOCUMENTATION` | `DEPLOYMENT`
+- **Blockers & Achievements**: Dedicated fields for flagging critical blockers and celebrating milestone deliverables.
+- **Auto-Save Drafts**: Save incomplete drafts (`DRAFT` status) and resume editing at any time.
+- **Revision Resubmission**: Increment version history automatically when submitting revisions requested by management.
+
+### 2. Consolidated Team Dashboard
+- **Team Compliance Rate**: Live calculation of submitted vs. missing weekly reports for any given week.
+- **Workload Distribution**: Visual hours breakdown across active projects and activity types.
+- **Active Blockers Radar**: Immediate visibility into team members impeded by external blockers.
+- **Status Cards**: Quick inspection of each member's report status (`APPROVED`, `SUBMITTED`, `NEEDS_CORRECTION`, `DRAFT`, `MISSING`).
+
+### 3. Manager Review & Correction Workflow
+- **Side-by-Side Review**: Inspect task-level progress, logged hours, blockers, and achievements.
+- **1-Click Approval**: Instant status transition to `APPROVED` with auditor timestamps.
+- **Change Request Cycle**: Return reports with inline feedback (`NEEDS_CORRECTION`), notifying the engineer to make corrections.
+
+### 4. Project Lifecycle & Allocation
+- **Enterprise Project Catalog**: Manage company-wide projects (Create, Update, Activate/Deactivate, Delete).
+- **Engineer Assignment**: Assign team members to projects with focus areas and real-time workload tracking.
+
+### 5. User Administration & Instant Deactivation
+- **Account Status Enforcement**: Admins can toggle user accounts between `ACTIVE` and `INACTIVE`.
+- **Instant Revocation**: If a user is deactivated while logged in:
+  - Backend `JwtAuthenticationFilter` rejects any further action (HTTP 403 / 401).
+  - Frontend `axiosClient` immediately intercepts the response, flushes the session, and redirects to login with an explicit alert.
+- **Admin Self-Protection**: Safeguards prevent administrators from deactivating or demoting their own active accounts.
+
+### 6. AI Chat Assistant (Section 8)
+- **Google Gemini Model**: Powered by Google's `gemini-3.8-flash` LLM.
+- **Context-Aware RAG Engine**: Generates executive summaries by querying live database entities (active projects, weekly reports, blockers, achievements).
+- **Clean Markdown Renderer**: Custom markdown engine parses bold tokens (`**text**`), headings (`###`), bullet lists (`* `), and dividers (`---`) into formatted UI elements with zero raw asterisk clutter.
+- **Dual-Engine Redundancy**: If external AI connectivity is unavailable, seamlessly falls back to the local Sisenco Reports Engine without throwing errors.
+- **RBAC & Data Privacy**: As specified in Section 8, the assistant is **restricted to Managers and Admins only**, remaining hidden for standard team members to protect confidential team workload data.
 
 ---
 
-## 🛠️ Getting Started Locally
+## 🛡 Role-Based Access Control (RBAC)
+
+| Capability / Route | `ROLE_ADMIN` | `ROLE_MANAGER` | `ROLE_TEAM_MEMBER` |
+| :--- | :---: | :---: | :---: |
+| Fill & Submit Personal Report | ✅ | ✅ | ✅ |
+| View Personal Report History | ✅ | ✅ | ✅ |
+| Consolidated Team Dashboard | ✅ | ✅ | ❌ |
+| Review & Approve Team Reports | ✅ | ✅ | ❌ |
+| Request Report Corrections | ✅ | ✅ | ❌ |
+| AI Chat Assistant (Gemini) | ✅ | ✅ | ❌ |
+| Project Catalog Management | ✅ | View Only | View Only |
+| User Provisioning & Deactivation | ✅ | ❌ | ❌ |
+
+---
+
+## 📁 Project Structure
+
+```
+Weekly_Report_Dashboard_FrontEnd/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml             # GitHub Actions CI/CD to AWS EC2
+├── public/                        # Static assets & brand icons
+├── src/
+│   ├── api/                       # Centralized Axios API services
+│   │   ├── axiosClient.js         # JWT interceptor & auto-logout handler
+│   │   ├── authApi.js             # Sign-in, sign-up, session profile
+│   │   ├── reportApi.js           # Weekly report CRUD, approvals, reviews
+│   │   ├── projectApi.js          # Project lifecycle management
+│   │   ├── dashboardApi.js        # Aggregated team analytics & stats
+│   │   ├── userApi.js             # User directory & deactivation API
+│   │   └── aiApi.js               # Gemini AI Chat Assistant client
+│   ├── components/                # Reusable UI component library
+│   │   ├── AiChatWidget.jsx       # Floating Gemini Chatbot with markdown parser
+│   │   ├── Navbar.jsx             # Navigation bar with role badges
+│   │   ├── Badge.jsx              # Status & category pills
+│   │   └── UserAvatar.jsx         # Sri Lankan identity avatars
+│   ├── pages/                     # Application views & workflows
+│   │   ├── auth/AuthPage.jsx                      # Sign-in & account creation
+│   │   ├── reports/PersonalReportPage.jsx         # Report form with auto-save
+│   │   ├── reports/ReportHistoryPage.jsx          # Personal submission log
+│   │   ├── reports/ReportDetailPage.jsx           # Read-only report view
+│   │   ├── manager/TeamDashboardPage.jsx          # Team compliance & metrics
+│   │   ├── manager/ManagerReviewPage.jsx          # Review & approval interface
+│   │   ├── manager/MemberProfilePage.jsx          # Member history inspection
+│   │   ├── projects/ProjectsPage.jsx              # Enterprise project catalog
+│   │   └── users/UserManagementPage.jsx           # User governance & status
+│   ├── theme/
+│   │   └── muiTheme.js            # MUI design token bridges
+│   ├── utils/
+│   │   └── dateUtils.js           # ISO week calculations (Monday–Sunday)
+│   ├── App.jsx                    # Root view router & session guard
+│   ├── index.css                  # Global CSS variables & typography
+│   └── main.jsx                   # React 19 entry point
+├── .env.example                   # Template environment variables
+├── package.json                   # Dependencies & build scripts
+└── vite.config.js                 # Vite build optimization configuration
+```
+
+---
+
+## 🛠 Local Development Setup
 
 ### Prerequisites
-- **Node.js**: v18.0.0 or later
-- **npm**: v9.0.0 or later
+- **Node.js**: `v18.0.0` or higher
+- **npm**: `v9.0.0` or higher
 
 ### 1. Clone the Repository
 ```bash
@@ -78,47 +192,53 @@ cd Weekly_Report_Dashboard_Frontend
 ```
 
 ### 2. Configure Environment
-Create a `.env` file in the project root:
+Create a `.env` file in the root directory:
 ```env
 VITE_API_BASE_URL=http://52.66.241.245:8080
 ```
 
-### 3. Install Dependencies & Run Dev Server
+### 3. Install Dependencies
 ```bash
 npm install
+```
+
+### 4. Start Local Development Server
+```bash
 npm run dev
 ```
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+Navigate to **`http://localhost:5173`** (or indicated port) in your browser.
 
-### 4. Build for Production
+### 5. Production Build
 ```bash
 npm run build
 ```
-Generates production bundle in `dist/`.
+Build output will be generated in `dist/`.
 
 ---
 
-## 🚢 CI/CD & Deployment to AWS EC2
+## 🚢 CI/CD & AWS Deployment
 
-This repository includes a GitHub Actions workflow in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) that builds and deploys the frontend directly to an AWS EC2 instance running Nginx.
+Every push to the **`main`** branch triggers an automated GitHub Actions pipeline ([`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)):
+
+1. **Build Step**:
+   - Checks out repository on `ubuntu-latest`.
+   - Sets up Node.js 20 with `npm` caching.
+   - Injects `VITE_API_BASE_URL` secret.
+   - Runs `npm ci` and `npm run build`.
+2. **Deploy Step**:
+   - Securely copies (`scp-action`) `dist/` bundle to EC2 target `/var/www/weekly-report/`.
+   - Reloads Nginx via SSH (`sudo systemctl reload nginx`) with zero-downtime.
 
 ### Required GitHub Secrets
-Navigate to **GitHub Repository** → **Settings** → **Secrets and variables** → **Actions**, and add:
-
-| Secret Name | Value |
-| :--- | :--- |
-| `EC2_HOST` | Frontend EC2 Public IP or Domain Name |
-| `EC2_SSH_KEY` | Private SSH Key content (`.pem`) for SSH access |
-| `VITE_API_URL` | `http://52.66.241.245:8080` (Backend API URL) |
-
-### Deployment Pipeline Stages
-1. **Build**: Pulls code, installs dependencies with `npm ci`, sets environment variables, runs `npm run build`.
-2. **SCP Artifacts**: Securely copies `dist/` build files to `/var/www/weekly-report/` on EC2.
-3. **Nginx Reload**: Tests configuration (`sudo nginx -t`) and reloads Nginx service (`sudo systemctl reload nginx`).
+- `EC2_HOST`: Elastic IP / Public IP of EC2 frontend host.
+- `EC2_SSH_KEY`: Private SSH RSA key (`.pem`) for `ubuntu` user.
+- `VITE_API_URL`: Backend API URL (`http://52.66.241.245:8080`).
 
 ---
 
-## 🔒 Security & Git Policies
+## 🔒 Security & Compliance
 
-- **Private Keys (`.pem`) & Secrets**: `.gitignore` is configured to explicitly ignore `*.pem`, `.pem`, `.env`, and `.env.local` to prevent private key and credential leaks to public repositories.
-- **Authentication**: All API requests utilize JWT Bearer tokens stored in local storage and refreshed on login.
+- **No Plaintext Secrets in Version Control**: `.gitignore` strictly ignores `.env`, `*.pem`, and sensitive local files.
+- **Stateless JWT Authentication**: Tokens stored in localStorage and passed via `Authorization: Bearer <token>` headers.
+- **Deactivation Interceptor**: Immediate logout and state purge upon receiving HTTP 401/403 due to account deactivation.
+- **Data Privacy in AI Engine**: Prompt engineering sanitizes and provides only high-level summary contexts, avoiding leakage of personally identifiable credentials.
