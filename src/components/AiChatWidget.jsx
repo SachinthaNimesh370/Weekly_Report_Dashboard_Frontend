@@ -1,62 +1,75 @@
-import React, { useState } from 'react';
-import { Sparkles, MessageSquare, X, Send, Bot, User, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Sparkles, MessageSquare, X, Send, Bot, User, ChevronRight, Loader2 } from 'lucide-react';
+import { aiApi } from '../api/aiApi';
 
 export function AiChatWidget({ currentUser }) {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef(null);
 
   const userName = currentUser?.fullName ? currentUser.fullName.split(' ')[0] : 'there';
-  const isMember = currentUser?.role === 'ROLE_TEAM_MEMBER';
 
   const [messages, setMessages] = useState([
     {
       id: 1,
       sender: 'ai',
-      text: `Hello ${userName}! I am your Sisenco Weekly Report Assistant. How can I help you today with filing reports, managing projects, or reviewing team status?`,
+      text: `Hello ${userName}! 👋 I am your Sisenco AI Assistant powered by Google Gemini. How can I help you today with team activity, blockers, or reporting workflows?`,
       time: 'Just now'
     }
   ]);
 
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      scrollToBottom();
+    }
+  }, [messages, isOpen, isLoading]);
+
   if (!currentUser) return null;
 
-  const handleSend = (textToSend) => {
+  const handleSend = async (textToSend) => {
     const query = textToSend || input;
-    if (!query.trim()) return;
+    if (!query.trim() || isLoading) return;
 
     const userMsg = {
       id: Date.now(),
       sender: 'user',
-      text: query,
+      text: query.trim(),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
     setMessages(prev => [...prev, userMsg]);
     setInput('');
+    setIsLoading(true);
 
-    setTimeout(() => {
-      const q = query.toLowerCase();
-      let replyText = "";
-
-      if (q.includes('submit') || q.includes('how to report') || q.includes('create report')) {
-        replyText = "To submit your weekly report:\n1. Click 'My Weekly Report' in the top navigation.\n2. Select your project and date range.\n3. Add deliverables to 'Tasks Completed This Week'.\n4. Outline 'Tasks Planned for Next Week' and any blockers.\n5. Click 'Submit for Review' to send to your manager.";
-      } else if (q.includes('blocker') || q.includes('issue') || q.includes('risk')) {
-        replyText = "When logging blockers:\n• Add any operational or technical impediments in section 4.\n• Check 'Flag as Key Issue' on the most critical blocker so managers can address it immediately.\n• Key issues appear highlighted on the executive dashboard.";
-      } else if (q.includes('review') || q.includes('approve') || q.includes('correction')) {
-        replyText = "Manager Review Workflow:\n• Managers and Admins can view pending reports in 'Review Workflow'.\n• You can click 'Approve' to finalize the report or 'Request Changes' with specific revision notes.\n• When changes are requested, the report returns to 'Needs Correction' state for the member.";
-      } else if (q.includes('project') || q.includes('assign')) {
-        replyText = "Project Management:\n• Administrators and Managers can create initiatives and assign team members in the 'Projects' tab.\n• Only active projects are available for weekly report tagging.";
-      } else {
-        replyText = `Sisenco Dashboard Help:\n• Database connected: Live AWS EC2 backend.\n• Logged in as: ${currentUser.fullName} (${currentUser.roleName || currentUser.role}).\n• Tip: You can review live report history, manage projects, and monitor compliance rates directly from the top navigation.`;
-      }
+    try {
+      const response = await aiApi.sendMessage(query.trim());
+      const replyText = response?.reply || (typeof response === 'string' ? response : 'I processed your request, but received an empty response.');
 
       const aiMsg = {
         id: Date.now() + 1,
         sender: 'ai',
         text: replyText,
+        model: response?.model || 'gemini-3.8-flash',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, aiMsg]);
-    }, 400);
+    } catch (err) {
+      console.error('Failed to get AI response:', err);
+      const errorMsg = {
+        id: Date.now() + 1,
+        sender: 'ai',
+        text: `⚠️ I encountered an issue connecting to the AI service: ${err.message || 'Server error'}. Please verify backend connection.`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -91,8 +104,8 @@ export function AiChatWidget({ currentUser }) {
       {/* Chat Popover Window */}
       {isOpen && (
         <div style={{
-          width: '380px',
-          height: '520px',
+          width: '390px',
+          height: '540px',
           backgroundColor: '#ffffff',
           borderRadius: '16px',
           boxShadow: '0 20px 30px -10px rgba(15,23,42,0.2), 0 0 0 1px rgba(15,23,42,0.08)',
@@ -112,19 +125,31 @@ export function AiChatWidget({ currentUser }) {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{
-                width: '30px',
-                height: '30px',
+                width: '32px',
+                height: '32px',
                 borderRadius: '8px',
-                backgroundColor: 'rgba(255,255,255,0.15)',
+                backgroundColor: 'rgba(37, 99, 235, 0.25)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                <Sparkles size={16} style={{ color: '#60a5fa' }} />
+                <Sparkles size={17} style={{ color: '#60a5fa' }} />
               </div>
               <div>
-                <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>Weekly Report Copilot</div>
-                <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>RAG-Lite Report Synthesis</div>
+                <div style={{ fontWeight: 600, fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>Sisenco AI Copilot</span>
+                  <span style={{
+                    fontSize: '0.625rem',
+                    padding: '1px 6px',
+                    borderRadius: '9999px',
+                    backgroundColor: '#1e293b',
+                    color: '#93c5fd',
+                    border: '1px solid #3b82f6'
+                  }}>
+                    Gemini 3.8
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Live RAG Context • Reports & Blockers</div>
               </div>
             </div>
             <button
@@ -153,9 +178,10 @@ export function AiChatWidget({ currentUser }) {
             whiteSpace: 'nowrap'
           }}>
             <button
-              onClick={() => handleSend("What did the backend team work on this week?")}
+              onClick={() => handleSend("Summarize team progress across all projects this week")}
+              disabled={isLoading}
               style={{
-                padding: '4px 8px',
+                padding: '4px 9px',
                 borderRadius: '9999px',
                 fontSize: '0.725rem',
                 backgroundColor: '#ffffff',
@@ -164,12 +190,13 @@ export function AiChatWidget({ currentUser }) {
                 cursor: 'pointer'
               }}
             >
-              🔍 Backend tasks
+              📊 Progress summary
             </button>
             <button
-              onClick={() => handleSend("Summarize open blockers across all projects")}
+              onClick={() => handleSend("What are the critical blockers reported by the team?")}
+              disabled={isLoading}
               style={{
-                padding: '4px 8px',
+                padding: '4px 9px',
                 borderRadius: '9999px',
                 fontSize: '0.725rem',
                 backgroundColor: '#ffffff',
@@ -181,9 +208,10 @@ export function AiChatWidget({ currentUser }) {
               ⚠️ Open blockers
             </button>
             <button
-              onClick={() => handleSend("Who hasn't submitted their weekly report yet?")}
+              onClick={() => handleSend("What active enterprise projects are currently being tracked?")}
+              disabled={isLoading}
               style={{
-                padding: '4px 8px',
+                padding: '4px 9px',
                 borderRadius: '9999px',
                 fontSize: '0.725rem',
                 backgroundColor: '#ffffff',
@@ -192,7 +220,22 @@ export function AiChatWidget({ currentUser }) {
                 cursor: 'pointer'
               }}
             >
-              📋 Compliance check
+              🚀 Active projects
+            </button>
+            <button
+              onClick={() => handleSend("How do I submit and edit my personal weekly report?")}
+              disabled={isLoading}
+              style={{
+                padding: '4px 9px',
+                borderRadius: '9999px',
+                fontSize: '0.725rem',
+                backgroundColor: '#ffffff',
+                border: '1px solid #cbd5e1',
+                color: '#334155',
+                cursor: 'pointer'
+              }}
+            >
+              📝 How to report
             </button>
           </div>
 
@@ -214,7 +257,7 @@ export function AiChatWidget({ currentUser }) {
                     display: 'flex',
                     gap: '8px',
                     alignSelf: isAi ? 'flex-start' : 'flex-end',
-                    maxWidth: '88%'
+                    maxWidth: '90%'
                   }}
                 >
                   {isAi && (
@@ -235,30 +278,72 @@ export function AiChatWidget({ currentUser }) {
 
                   <div>
                     <div style={{
-                      padding: '10px 12px',
+                      padding: '10px 13px',
                       borderRadius: '12px',
                       fontSize: '0.8125rem',
-                      lineHeight: '1.4',
+                      lineHeight: '1.45',
                       backgroundColor: isAi ? '#f1f5f9' : '#2563eb',
                       color: isAi ? '#0f172a' : '#ffffff',
                       borderBottomLeftRadius: isAi ? '2px' : '12px',
                       borderBottomRightRadius: isAi ? '12px' : '2px',
-                      whiteSpace: 'pre-line'
+                      whiteSpace: 'pre-line',
+                      wordBreak: 'break-word'
                     }}>
                       {m.text}
                     </div>
                     <div style={{
-                      fontSize: '0.675rem',
+                      fontSize: '0.65rem',
                       color: '#94a3b8',
                       marginTop: '3px',
-                      textAlign: isAi ? 'left' : 'right'
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      justifyContent: isAi ? 'flex-start' : 'flex-end'
                     }}>
-                      {m.time}
+                      <span>{m.time}</span>
+                      {isAi && m.model && (
+                        <span style={{ color: '#64748b' }}>• {m.model}</span>
+                      )}
                     </div>
                   </div>
                 </div>
               );
             })}
+
+            {/* Thinking / Loading indicator */}
+            {isLoading && (
+              <div style={{ display: 'flex', gap: '8px', alignSelf: 'flex-start', maxWidth: '85%' }}>
+                <div style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  backgroundColor: '#eff6ff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#2563eb',
+                  flexShrink: 0
+                }}>
+                  <Bot size={14} />
+                </div>
+                <div style={{
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  borderBottomLeftRadius: '2px',
+                  fontSize: '0.8rem',
+                  backgroundColor: '#f1f5f9',
+                  color: '#64748b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <Loader2 size={14} className="spin" />
+                  <span>Gemini is analyzing reports...</span>
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Footer Input Bar */}
@@ -273,17 +358,19 @@ export function AiChatWidget({ currentUser }) {
               type="text"
               className="form-input"
               style={{ fontSize: '0.8125rem', padding: '7px 10px' }}
-              placeholder="Ask about weekly reports..."
+              placeholder={isLoading ? "Please wait..." : "Ask about weekly reports, blockers, tasks..."}
               value={input}
+              disabled={isLoading}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
             />
             <button
               onClick={() => handleSend()}
+              disabled={isLoading || !input.trim()}
               className="btn btn-primary"
-              style={{ padding: '0 12px' }}
+              style={{ padding: '0 12px', opacity: (isLoading || !input.trim()) ? 0.6 : 1 }}
             >
-              <Send size={15} />
+              {isLoading ? <Loader2 size={15} className="spin" /> : <Send size={15} />}
             </button>
           </div>
         </div>
