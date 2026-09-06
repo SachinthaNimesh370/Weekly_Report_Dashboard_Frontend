@@ -163,40 +163,40 @@ export function AuthPage({ onLogin, allUsers }) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button
-              onClick={() => handleQuickLogin('member@weeklyreport.com', 'Member@123')}
+              onClick={() => handleQuickLogin('chamara.f@sisenco.lk', 'Password@123')}
               disabled={loading}
               className="btn btn-secondary btn-sm"
               style={{ justifyContent: 'space-between', padding: '8px 12px' }}
             >
               <div style={{ textAlign: 'left' }}>
-                <span style={{ fontWeight: 600, color: '#0f172a' }}>John Developer (Member)</span>
-                <span style={{ color: '#64748b', fontSize: '0.75rem', marginLeft: '6px' }}>ROLE_TEAM_MEMBER</span>
+                <span style={{ fontWeight: 600, color: '#0f172a' }}>Chamara Fernando</span>
+                <span style={{ color: '#64748b', fontSize: '0.75rem', marginLeft: '6px' }}>Team Member</span>
               </div>
               <ArrowRight size={14} style={{ color: '#2563eb' }} />
             </button>
 
             <button
-              onClick={() => handleQuickLogin('manager@weeklyreport.com', 'Manager@123')}
+              onClick={() => handleQuickLogin('nuwan.silva@sisenco.lk', 'Password@123')}
               disabled={loading}
               className="btn btn-secondary btn-sm"
               style={{ justifyContent: 'space-between', padding: '8px 12px' }}
             >
               <div style={{ textAlign: 'left' }}>
-                <span style={{ fontWeight: 600, color: '#0f172a' }}>Lead Manager</span>
-                <span style={{ color: '#64748b', fontSize: '0.75rem', marginLeft: '6px' }}>ROLE_MANAGER</span>
+                <span style={{ fontWeight: 600, color: '#0f172a' }}>Nuwan Silva</span>
+                <span style={{ color: '#64748b', fontSize: '0.75rem', marginLeft: '6px' }}>Manager</span>
               </div>
               <ArrowRight size={14} style={{ color: '#2563eb' }} />
             </button>
 
             <button
-              onClick={() => handleQuickLogin('admin@weeklyreport.com', 'Admin@123')}
+              onClick={() => handleQuickLogin('admin@sisenco.lk', 'Password@123')}
               disabled={loading}
               className="btn btn-secondary btn-sm"
               style={{ justifyContent: 'space-between', padding: '8px 12px' }}
             >
               <div style={{ textAlign: 'left' }}>
-                <span style={{ fontWeight: 600, color: '#0f172a' }}>System Administrator</span>
-                <span style={{ color: '#64748b', fontSize: '0.75rem', marginLeft: '6px' }}>ROLE_ADMIN</span>
+                <span style={{ fontWeight: 600, color: '#0f172a' }}>Sachintha Nimesh</span>
+                <span style={{ color: '#64748b', fontSize: '0.75rem', marginLeft: '6px' }}>Admin</span>
               </div>
               <ArrowRight size={14} style={{ color: '#2563eb' }} />
             </button>

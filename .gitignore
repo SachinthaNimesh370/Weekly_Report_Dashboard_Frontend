@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Secrets, Environment & SSH Keys
+.env
+.env.local
+.pem
+*.pem
