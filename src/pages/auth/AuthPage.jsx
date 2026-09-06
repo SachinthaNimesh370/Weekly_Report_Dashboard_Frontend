@@ -36,8 +36,7 @@ export function AuthPage({ onLogin, allUsers }) {
           role: data.role,
           roleName: data.role === 'ROLE_ADMIN' ? 'Admin' : data.role === 'ROLE_MANAGER' ? 'Manager' : 'Team Member',
           token: data.token,
-          isActive: true,
-          avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80'
+          isActive: true
         };
         onLogin(loggedInUser);
       } else {
@@ -52,12 +51,7 @@ export function AuthPage({ onLogin, allUsers }) {
           role: data.role,
           roleName: data.role === 'ROLE_ADMIN' ? 'Admin' : data.role === 'ROLE_MANAGER' ? 'Manager' : 'Team Member',
           token: data.token,
-          isActive: true,
-          avatar: data.role === 'ROLE_ADMIN' 
-            ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80'
-            : data.role === 'ROLE_MANAGER'
-            ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80'
-            : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80'
+          isActive: true
         };
         onLogin(loggedInUser);
       }

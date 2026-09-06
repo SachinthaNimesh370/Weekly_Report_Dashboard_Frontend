@@ -15,7 +15,7 @@ import {
   WifiOff
 } from 'lucide-react';
 import axiosClient from '../api/axiosClient';
-
+import { UserAvatar } from './UserAvatar';
 
 export function Navbar({ 
   currentUser, 
@@ -238,11 +238,7 @@ export function Navbar({
           )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '9px', textAlign: 'right' }}>
-            <img 
-              src={currentUser.avatar} 
-              alt={currentUser.fullName} 
-              style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #cbd5e1' }}
-            />
+            <UserAvatar name={currentUser.fullName} size={34} />
             <div>
               <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#0f172a' }}>
                 {currentUser.fullName}
