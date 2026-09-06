@@ -2,6 +2,154 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, MessageSquare, X, Send, Bot, User, ChevronRight, Loader2 } from 'lucide-react';
 import { aiApi } from '../api/aiApi';
 
+// Helper component to render clean markdown (bold, lists, headers, code, hr) without raw asterisks
+function renderInlineMarkdown(str, isUser = false) {
+  if (!str) return '';
+  const tokenRegex = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+
+  while ((match = tokenRegex.exec(str)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(str.substring(lastIndex, match.index));
+    }
+    const token = match[0];
+    if (token.startsWith('**') && token.endsWith('**')) {
+      parts.push(
+        <strong key={key++} style={{ fontWeight: 700, color: isUser ? '#ffffff' : '#0f172a' }}>
+          {token.slice(2, -2)}
+        </strong>
+      );
+    } else if (token.startsWith('`') && token.endsWith('`')) {
+      parts.push(
+        <code
+          key={key++}
+          style={{
+            backgroundColor: isUser ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.06)',
+            color: isUser ? '#ffffff' : '#0369a1',
+            padding: '1px 5px',
+            borderRadius: '4px',
+            fontSize: '0.85em',
+            fontFamily: 'monospace'
+          }}
+        >
+          {token.slice(1, -1)}
+        </code>
+      );
+    } else if (token.startsWith('*') && token.endsWith('*')) {
+      parts.push(
+        <em key={key++} style={{ fontStyle: 'italic' }}>
+          {token.slice(1, -1)}
+        </em>
+      );
+    }
+    lastIndex = match.index + token.length;
+  }
+
+  if (lastIndex < str.length) {
+    parts.push(str.substring(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : str;
+}
+
+function FormattedMessage({ text, isUser = false }) {
+  if (!text) return null;
+  if (isUser) {
+    return <span>{text}</span>;
+  }
+
+  const lines = text.split('\n');
+  const elements = [];
+  let currentList = [];
+
+  const flushList = () => {
+    if (currentList.length > 0) {
+      elements.push(
+        <ul key={`list-${elements.length}`} style={{ margin: '4px 0 8px 18px', padding: 0 }}>
+          {currentList.map((item, idx) => (
+            <li key={idx} style={{ marginBottom: '4px', listStyleType: 'disc', lineHeight: '1.45' }}>
+              {renderInlineMarkdown(item, isUser)}
+            </li>
+          ))}
+        </ul>
+      );
+      currentList = [];
+    }
+  };
+
+  lines.forEach((rawLine, idx) => {
+    const line = rawLine.trim();
+
+    // Horizontal Rule: --- or ***
+    if (line === '---' || line === '***') {
+      flushList();
+      elements.push(
+        <hr key={`hr-${idx}`} style={{ border: 'none', borderTop: '1px solid #cbd5e1', margin: '10px 0' }} />
+      );
+      return;
+    }
+
+    // Headings (#### or ### or ##)
+    if (line.startsWith('#### ')) {
+      flushList();
+      elements.push(
+        <div key={`h4-${idx}`} style={{ fontWeight: 700, fontSize: '0.85rem', color: '#1e293b', marginTop: '8px', marginBottom: '4px' }}>
+          {renderInlineMarkdown(line.replace(/^####\s+/, ''), isUser)}
+        </div>
+      );
+      return;
+    }
+
+    if (line.startsWith('### ')) {
+      flushList();
+      elements.push(
+        <div key={`h3-${idx}`} style={{ fontWeight: 700, fontSize: '0.925rem', color: '#0f172a', marginTop: '10px', marginBottom: '4px' }}>
+          {renderInlineMarkdown(line.replace(/^###\s+/, ''), isUser)}
+        </div>
+      );
+      return;
+    }
+
+    if (line.startsWith('## ')) {
+      flushList();
+      elements.push(
+        <div key={`h2-${idx}`} style={{ fontWeight: 800, fontSize: '0.975rem', color: '#0f172a', marginTop: '12px', marginBottom: '6px' }}>
+          {renderInlineMarkdown(line.replace(/^##\s+/, ''), isUser)}
+        </div>
+      );
+      return;
+    }
+
+    // Bullet / numbered list item: "* ", "- ", "• " or "1. "
+    const bulletMatch = line.match(/^([*\-•]|\d+\.)\s+(.*)/);
+    if (bulletMatch) {
+      currentList.push(bulletMatch[2]);
+      return;
+    }
+
+    // Empty line
+    if (!line) {
+      flushList();
+      elements.push(<div key={`spacer-${idx}`} style={{ height: '6px' }} />);
+      return;
+    }
+
+    // Regular paragraph
+    flushList();
+    elements.push(
+      <p key={`p-${idx}`} style={{ margin: '0 0 6px 0', lineHeight: '1.45' }}>
+        {renderInlineMarkdown(line, isUser)}
+      </p>
+    );
+  });
+
+  flushList();
+  return <div style={{ wordBreak: 'break-word' }}>{elements}</div>;
+}
+
 export function AiChatWidget({ currentUser }) {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -286,10 +434,9 @@ export function AiChatWidget({ currentUser }) {
                       color: isAi ? '#0f172a' : '#ffffff',
                       borderBottomLeftRadius: isAi ? '2px' : '12px',
                       borderBottomRightRadius: isAi ? '12px' : '2px',
-                      whiteSpace: 'pre-line',
                       wordBreak: 'break-word'
                     }}>
-                      {m.text}
+                      <FormattedMessage text={m.text} isUser={!isAi} />
                     </div>
                     <div style={{
                       fontSize: '0.65rem',
