@@ -1,33 +1,53 @@
 import React, { useState } from 'react';
-import { UserPlus, Shield, Check, X, Mail, Power, Trash2 } from 'lucide-react';
+import { UserPlus, Shield, Check, X, Mail, Power, Trash2, Loader2 } from 'lucide-react';
+import { authApi } from '../../api/authApi';
 
-export function UserManagementPage({ allUsers, onUpdateUser, onAddUser, currentUser }) {
+export function UserManagementPage({ allUsers = [], onUpdateUser, onAddUser, currentUser }) {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('ROLE_TEAM_MEMBER');
   const [inviteDepartment, setInviteDepartment] = useState('Engineering');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState('');
 
-  const handleInvite = (e) => {
+  const handleInvite = async (e) => {
     e.preventDefault();
     if (!inviteName.trim() || !inviteEmail.trim()) return;
+    setInviteLoading(true);
+    setInviteError('');
 
-    const newUser = {
-      id: Date.now(),
-      fullName: inviteName.trim(),
-      email: inviteEmail.trim(),
-      role: inviteRole,
-      roleName: inviteRole === 'ROLE_ADMIN' ? 'Admin' : inviteRole === 'ROLE_MANAGER' ? 'Manager' : 'Team Member',
-      isActive: true,
-      avatar: `https://images.unsplash.com/photo-${1534528741775 + Math.floor(Math.random() * 500)}?w=120&auto=format&fit=crop&q=80`,
-      title: 'Engineer',
-      department: inviteDepartment
-    };
+    try {
+      // Register new user directly in EC2 database
+      const res = await authApi.register({
+        fullName: inviteName.trim(),
+        email: inviteEmail.trim(),
+        password: 'User@123',
+        role: inviteRole
+      });
 
-    onAddUser(newUser);
-    setShowInviteModal(false);
-    setInviteName('');
-    setInviteEmail('');
+      const newUser = {
+        id: res?.id || Date.now(),
+        fullName: inviteName.trim(),
+        email: inviteEmail.trim(),
+        role: inviteRole,
+        roleName: inviteRole === 'ROLE_ADMIN' ? 'Admin' : inviteRole === 'ROLE_MANAGER' ? 'Manager' : 'Team Member',
+        isActive: true,
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(inviteName.trim())}&background=2563eb&color=fff`,
+        title: 'Engineer',
+        department: inviteDepartment
+      };
+
+      if (onAddUser) onAddUser(newUser);
+      setShowInviteModal(false);
+      setInviteName('');
+      setInviteEmail('');
+    } catch (err) {
+      console.error('Failed to register user:', err);
+      setInviteError(err.message || 'Failed to register new user on server.');
+    } finally {
+      setInviteLoading(false);
+    }
   };
 
   const handleRoleChange = (user, newRole) => {
@@ -79,12 +99,19 @@ export function UserManagementPage({ allUsers, onUpdateUser, onAddUser, currentU
               </tr>
             </thead>
             <tbody>
-              {allUsers.map((u) => (
+              {allUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: '2.5rem', color: '#94a3b8' }}>
+                    No team members found in the database.
+                  </td>
+                </tr>
+              ) : (
+                allUsers.map((u) => (
                 <tr key={u.id} style={{ opacity: u.isActive ? 1 : 0.6 }}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <img
-                        src={u.avatar}
+                        src={u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.fullName || 'User')}&background=2563eb&color=fff`}
                         alt={u.fullName}
                         style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
                       />
@@ -144,7 +171,7 @@ export function UserManagementPage({ allUsers, onUpdateUser, onAddUser, currentU
                     </button>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>

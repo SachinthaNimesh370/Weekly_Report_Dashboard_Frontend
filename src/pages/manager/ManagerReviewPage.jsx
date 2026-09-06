@@ -17,7 +17,6 @@ import { reportApi } from '../../api/reportApi';
 
 export function ManagerReviewPage({ 
   report: selectedReportProp, 
-  reports: mockReports, 
   onSelectReport, 
   onApprove, 
   onRequestChanges, 
@@ -50,9 +49,8 @@ export function ManagerReviewPage({
       setPendingReports(list);
     } catch (err) {
       console.error('Failed to fetch manager reports:', err);
-      setFetchError(err.message || 'Failed to load reports. Showing cached data.');
-      // Fallback to mock data
-      setPendingReports((mockReports || []).filter(r => r.status === 'SUBMITTED'));
+      setFetchError(err.message || 'Failed to load reports.');
+      setPendingReports([]);
     } finally {
       setLoading(false);
     }

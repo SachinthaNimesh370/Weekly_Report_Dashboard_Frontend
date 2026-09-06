@@ -38,8 +38,8 @@ export function Navbar({
         await axiosClient.get('/api/auth/me', { timeout: 3000 });
         setBackendOnline(true);
       } catch (err) {
-        // 401 = backend is alive but no token, which is fine
-        if (err?.response?.status === 401 || err?.response?.status === 403) {
+        // 401/403 = backend is alive but unauthenticated, which confirms server is online
+        if (err?.response?.status === 401 || err?.response?.status === 403 || err?.status === 401 || err?.status === 403) {
           setBackendOnline(true);
         } else {
           setBackendOnline(false);

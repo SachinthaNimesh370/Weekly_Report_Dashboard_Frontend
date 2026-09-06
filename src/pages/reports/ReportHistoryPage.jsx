@@ -4,7 +4,6 @@ import { StatusBadge } from '../../components/Badge';
 import { reportApi } from '../../api/reportApi';
 
 export function ReportHistoryPage({ 
-  reports: mockReports, 
   currentUser, 
   onViewReport, 
   onEditReport, 
@@ -33,10 +32,8 @@ export function ReportHistoryPage({
       setReports(list);
     } catch (err) {
       console.error('Failed to fetch reports:', err);
-      setError(err.message || 'Failed to load reports. Please try again.');
-      // Fallback to mock data
-      const myReports = mockReports.filter(r => r.userId === currentUser.id);
-      setReports(selectedStatus === 'ALL' ? myReports : myReports.filter(r => r.status === selectedStatus));
+      setError(err.message || 'Failed to load reports.');
+      setReports([]);
     } finally {
       setLoading(false);
     }

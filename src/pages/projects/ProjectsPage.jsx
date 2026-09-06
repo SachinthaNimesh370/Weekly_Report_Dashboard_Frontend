@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Users, FolderKanban, Check, X, Trash2, Power, RefreshCw, AlertCircle } from 'lucide-react';
 import { projectApi } from '../../api/projectApi';
 
-export function ProjectsPage({ projects: mockProjects, allUsers, onAddProject, onUpdateProject, currentUser }) {
+export function ProjectsPage({ projects: initialProjects = [], allUsers = [], onAddProject, onUpdateProject, currentUser }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [assigningProject, setAssigningProject] = useState(null);
-  const [projects, setProjects] = useState(mockProjects || []);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [fetchError, setFetchError] = useState('');
@@ -18,7 +18,7 @@ export function ProjectsPage({ projects: mockProjects, allUsers, onAddProject, o
   const [color, setColor] = useState('#2563eb');
   const [selectedMemberIds, setSelectedMemberIds] = useState([]);
 
-  const isManagerOrAdmin = currentUser.role === 'ROLE_MANAGER' || currentUser.role === 'ROLE_ADMIN';
+  const isManagerOrAdmin = currentUser?.role === 'ROLE_MANAGER' || currentUser?.role === 'ROLE_ADMIN';
   const teamMembers = allUsers.filter(u => u.role === 'ROLE_TEAM_MEMBER');
 
   useEffect(() => {
@@ -32,11 +32,11 @@ export function ProjectsPage({ projects: mockProjects, allUsers, onAddProject, o
       const res = isManagerOrAdmin
         ? await projectApi.getAllProjects()
         : await projectApi.getActiveProjects();
-      setProjects(res ?? []);
+      setProjects(Array.isArray(res) ? res : []);
     } catch (err) {
       console.error('Failed to load projects:', err);
-      setFetchError(err.message || 'Could not load projects. Showing local data.');
-      setProjects(mockProjects || []);
+      setFetchError(err.message || 'Could not load projects from database.');
+      setProjects([]);
     } finally {
       setLoading(false);
     }
@@ -146,109 +146,156 @@ export function ProjectsPage({ projects: mockProjects, allUsers, onAddProject, o
       </div>
 
       {/* Projects Grid / Table */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
-        {projects.map((proj) => {
-          const assignedMembers = teamMembers.filter(m => proj.memberIds?.includes(m.id));
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#64748b' }}>
+          <div style={{ width: '32px', height: '32px', border: '3px solid #e2e8f0', borderTopColor: '#2563eb', borderRadius: '50%', margin: '0 auto 12px', animation: 'spin 0.7s linear infinite' }} />
+          <p style={{ fontSize: '0.875rem' }}>Loading projects from database...</p>
+        </div>
+      ) : projects.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#64748b' }}>
+          <FolderKanban size={44} style={{ color: '#cbd5e1', margin: '0 auto 12px auto' }} />
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#0f172a' }}>No Projects Found</h3>
+          <p style={{ fontSize: '0.875rem', marginTop: '6px', maxWidth: '380px', margin: '6px auto 16px auto' }}>
+            There are currently no projects in the database.
+            {isManagerOrAdmin ? ' Click "Add New Project" above to create your team\'s first project.' : ' Please ask a Manager or Administrator to create an active project.'}
+          </p>
+          {isManagerOrAdmin && (
+            <button onClick={openAddModal} className="btn btn-primary btn-sm" style={{ margin: '0 auto' }}>
+              <Plus size={14} /> Add New Project
+            </button>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
+          {projects.map((proj) => {
+            const assignedMembers = teamMembers.filter(m => proj.memberIds?.includes(m.id));
 
-          return (
-            <div 
-              key={proj.id} 
-              className="card"
-              style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                justifyContent: 'space-between',
-                borderLeft: `4px solid ${proj.color || '#2563eb'}` 
-              }}
-            >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{
-                    fontSize: '0.725rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                    color: proj.color || '#2563eb'
-                  }}>
-                    {proj.category || 'Initiative'}
-                  </span>
+            return (
+              <div 
+                key={proj.id} 
+                className="card"
+                style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  justifyContent: 'space-between',
+                  borderLeft: `4px solid ${proj.color || '#2563eb'}` 
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ 
+                      fontSize: '0.725rem', 
+                      fontWeight: 700, 
+                      textTransform: 'uppercase', 
+                      letterSpacing: '0.05em',
+                      color: proj.color || '#2563eb' 
+                    }}>
+                      {proj.category || 'General'}
+                    </span>
+                    <span style={{ 
+                      padding: '2px 8px', 
+                      borderRadius: '9999px', 
+                      fontSize: '0.7rem', 
+                      fontWeight: 600,
+                      backgroundColor: proj.isActive ? '#ecfdf5' : '#f1f5f9',
+                      color: proj.isActive ? '#059669' : '#64748b'
+                    }}>
+                      {proj.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
 
-                  <span style={{
-                    padding: '2px 8px',
-                    borderRadius: '9999px',
-                    fontSize: '0.725rem',
-                    fontWeight: 600,
-                    backgroundColor: proj.isActive ? '#ecfdf5' : '#f1f5f9',
-                    color: proj.isActive ? '#059669' : '#64748b',
-                    border: `1px solid ${proj.isActive ? '#a7f3d0' : '#cbd5e1'}`
-                  }}>
-                    {proj.isActive ? 'Active' : 'Inactive'}
-                  </span>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
+                    {proj.name}
+                  </h3>
+
+                  <p style={{ color: '#64748b', fontSize: '0.85rem', lineHeight: '1.45', marginBottom: '1rem' }}>
+                    {proj.description || 'No description provided.'}
+                  </p>
                 </div>
 
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: '#0f172a', marginBottom: '6px' }}>
-                  {proj.name}
-                </h3>
-                <p style={{ fontSize: '0.8125rem', color: '#64748b', lineHeight: '1.45', marginBottom: '1rem' }}>
-                  {proj.description || 'No description provided.'}
-                </p>
-
-                {/* Assigned Members Avatars */}
-                <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '10px', marginBottom: '1rem' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '6px', fontWeight: 500 }}>
-                    Assigned Team ({assignedMembers.length})
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                    {assignedMembers.length === 0 ? (
-                      <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>
-                        No members assigned yet
+                <div>
+                  {/* Assigned Team Members Row */}
+                  <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px', marginTop: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#64748b', marginBottom: '8px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Users size={13} />
+                        Assigned Members ({assignedMembers.length})
                       </span>
-                    ) : (
-                      assignedMembers.map(m => (
-                        <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#f8fafc', padding: '2px 8px', borderRadius: '9999px', border: '1px solid #e2e8f0' }}>
-                          <img src={m.avatar} alt={m.fullName} style={{ width: '18px', height: '18px', borderRadius: '50%' }} />
-                          <span style={{ fontSize: '0.725rem', color: '#334155' }}>{m.fullName.split(' ')[0]}</span>
-                        </div>
-                      ))
-                    )}
+                      {isManagerOrAdmin && (
+                        <button
+                          onClick={() => openAssignModal(proj)}
+                          className="btn btn-sm"
+                          style={{ padding: '2px 6px', fontSize: '0.7rem', height: 'auto', background: 'none', border: '1px dashed #cbd5e1', color: '#2563eb' }}
+                        >
+                          + Assign
+                        </button>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      {assignedMembers.length === 0 ? (
+                        <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                          No members assigned yet
+                        </span>
+                      ) : (
+                        assignedMembers.map(m => (
+                          <div
+                            key={m.id}
+                            title={`${m.fullName} (${m.roleName || m.role})`}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              backgroundColor: '#f8fafc',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '9999px',
+                              padding: '2px 8px',
+                              fontSize: '0.725rem'
+                            }}
+                          >
+                            <img
+                              src={m.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.fullName)}`}
+                              alt={m.fullName}
+                              style={{ width: '16px', height: '16px', borderRadius: '50%' }}
+                            />
+                            <span style={{ fontWeight: 500, color: '#334155' }}>
+                              {m.fullName.split(' ')[0]}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
+
+                  {/* Actions Bar */}
+                  {isManagerOrAdmin && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid #f1f5f9', paddingTop: '10px', marginTop: '12px' }}>
+                      <button
+                        onClick={() => handleToggleActive(proj)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                        title={proj.isActive ? 'Deactivate project' : 'Activate project'}
+                      >
+                        <Power size={13} style={{ color: proj.isActive ? '#dc2626' : '#16a34a' }} />
+                        <span>{proj.isActive ? 'Deactivate' : 'Activate'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => openEditModal(proj)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                        title="Edit project details"
+                      >
+                        <Edit2 size={13} /> Edit
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {/* Action Buttons */}
-              {isManagerOrAdmin && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #e2e8f0', paddingTop: '10px' }}>
-                  <button
-                    onClick={() => openAssignModal(proj)}
-                    className="btn btn-secondary btn-sm"
-                  >
-                    <Users size={13} /> Assign Members
-                  </button>
-
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button
-                      onClick={() => openEditModal(proj)}
-                      className="btn btn-secondary btn-sm"
-                      title="Edit project"
-                    >
-                      <Edit2 size={13} /> Edit
-                    </button>
-
-                    <button
-                      onClick={() => handleToggleActive(proj)}
-                      className="btn btn-secondary btn-sm"
-                      style={{ color: proj.isActive ? '#dc2626' : '#059669' }}
-                      title={proj.isActive ? 'Deactivate Project' : 'Activate Project'}
-                    >
-                      <Power size={13} />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Add / Edit Project Modal */}
       {(showAddModal || editingProject) && (

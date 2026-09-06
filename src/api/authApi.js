@@ -7,11 +7,12 @@ export const authApi = {
    */
   async login({ email, password }) {
     const res = await axiosClient.post('/api/auth/login', { email, password });
-    if (res.data?.token) {
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data));
+    const payload = res?.data || res;
+    if (payload?.token) {
+      localStorage.setItem('token', payload.token);
+      localStorage.setItem('user', JSON.stringify(payload));
     }
-    return res.data;
+    return payload;
   },
 
   /**
@@ -20,11 +21,12 @@ export const authApi = {
    */
   async register(data) {
     const res = await axiosClient.post('/api/auth/register', data);
-    if (res.data?.token) {
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data));
+    const payload = res?.data || res;
+    if (payload?.token) {
+      localStorage.setItem('token', payload.token);
+      localStorage.setItem('user', JSON.stringify(payload));
     }
-    return res.data;
+    return payload;
   },
 
   /**
@@ -32,7 +34,7 @@ export const authApi = {
    */
   async getCurrentUser() {
     const res = await axiosClient.get('/api/auth/me');
-    return res.data;
+    return res?.data || res;
   },
 
   /**

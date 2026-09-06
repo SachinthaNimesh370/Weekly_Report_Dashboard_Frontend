@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
 import { Sparkles, MessageSquare, X, Send, Bot, User, ChevronRight } from 'lucide-react';
-import { AI_SUGGESTIONS } from '../data/mockData';
 
 export function AiChatWidget({ currentUser }) {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
+
+  const userName = currentUser?.fullName ? currentUser.fullName.split(' ')[0] : 'there';
+  const isMember = currentUser?.role === 'ROLE_TEAM_MEMBER';
+
   const [messages, setMessages] = useState([
     {
       id: 1,
       sender: 'ai',
-      text: `Hello ${currentUser.fullName.split(' ')[0]}! I am your Weekly Report AI Assistant. Ask me about team deliverables, recurring blockers, workload distribution, or submission status.`,
+      text: `Hello ${userName}! I am your Sisenco Weekly Report Assistant. How can I help you today with filing reports, managing projects, or reviewing team status?`,
       time: 'Just now'
     }
   ]);
+
+  if (!currentUser) return null;
 
   const handleSend = (textToSend) => {
     const query = textToSend || input;
@@ -28,22 +33,20 @@ export function AiChatWidget({ currentUser }) {
     setMessages(prev => [...prev, userMsg]);
     setInput('');
 
-    // Simulated RAG / Backend AI lookup
     setTimeout(() => {
-      const match = AI_SUGGESTIONS.find(s => 
-        query.toLowerCase().includes(s.query.toLowerCase().substring(0, 15)) ||
-        s.query.toLowerCase().includes(query.toLowerCase().substring(0, 15))
-      );
-
+      const q = query.toLowerCase();
       let replyText = "";
-      if (match) {
-        replyText = match.response;
-      } else if (query.toLowerCase().includes('blocker') || query.toLowerCase().includes('issue')) {
-        replyText = AI_SUGGESTIONS[1].response;
-      } else if (query.toLowerCase().includes('submit') || query.toLowerCase().includes('status') || query.toLowerCase().includes('who')) {
-        replyText = AI_SUGGESTIONS[2].response;
+
+      if (q.includes('submit') || q.includes('how to report') || q.includes('create report')) {
+        replyText = "To submit your weekly report:\n1. Click 'My Weekly Report' in the top navigation.\n2. Select your project and date range.\n3. Add deliverables to 'Tasks Completed This Week'.\n4. Outline 'Tasks Planned for Next Week' and any blockers.\n5. Click 'Submit for Review' to send to your manager.";
+      } else if (q.includes('blocker') || q.includes('issue') || q.includes('risk')) {
+        replyText = "When logging blockers:\n• Add any operational or technical impediments in section 4.\n• Check 'Flag as Key Issue' on the most critical blocker so managers can address it immediately.\n• Key issues appear highlighted on the executive dashboard.";
+      } else if (q.includes('review') || q.includes('approve') || q.includes('correction')) {
+        replyText = "Manager Review Workflow:\n• Managers and Admins can view pending reports in 'Review Workflow'.\n• You can click 'Approve' to finalize the report or 'Request Changes' with specific revision notes.\n• When changes are requested, the report returns to 'Needs Correction' state for the member.";
+      } else if (q.includes('project') || q.includes('assign')) {
+        replyText = "Project Management:\n• Administrators and Managers can create initiatives and assign team members in the 'Projects' tab.\n• Only active projects are available for weekly report tagging.";
       } else {
-        replyText = `Based on reports for Week 37:\n• 4 out of 5 active team members submitted their reports.\n• 1 report (Maria Garcia) is in NEEDS_CORRECTION state.\n• 1 report (David Kim) has been APPROVED.\n• Alex Chen's report is awaiting manager review with 100% auth deliverables completed.`;
+        replyText = `Sisenco Dashboard Help:\n• Database connected: Live AWS EC2 backend.\n• Logged in as: ${currentUser.fullName} (${currentUser.roleName || currentUser.role}).\n• Tip: You can review live report history, manage projects, and monitor compliance rates directly from the top navigation.`;
       }
 
       const aiMsg = {
@@ -53,7 +56,7 @@ export function AiChatWidget({ currentUser }) {
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, aiMsg]);
-    }, 450);
+    }, 400);
   };
 
   return (
