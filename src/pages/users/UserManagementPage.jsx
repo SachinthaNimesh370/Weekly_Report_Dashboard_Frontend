@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserPlus, Shield, Check, X, Mail, Power, Trash2, Loader2 } from 'lucide-react';
 import { authApi } from '../../api/authApi';
+import { UserAvatar } from '../../components/UserAvatar';
 
 export function UserManagementPage({ allUsers = [], onUpdateUser, onAddUser, currentUser }) {
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -22,7 +23,7 @@ export function UserManagementPage({ allUsers = [], onUpdateUser, onAddUser, cur
       const res = await authApi.register({
         fullName: inviteName.trim(),
         email: inviteEmail.trim(),
-        password: 'User@123',
+        password: 'Password@123',
         role: inviteRole
       });
 
@@ -33,7 +34,6 @@ export function UserManagementPage({ allUsers = [], onUpdateUser, onAddUser, cur
         role: inviteRole,
         roleName: inviteRole === 'ROLE_ADMIN' ? 'Admin' : inviteRole === 'ROLE_MANAGER' ? 'Manager' : 'Team Member',
         isActive: true,
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(inviteName.trim())}&background=2563eb&color=fff`,
         title: 'Engineer',
         department: inviteDepartment
       };
@@ -110,11 +110,7 @@ export function UserManagementPage({ allUsers = [], onUpdateUser, onAddUser, cur
                 <tr key={u.id} style={{ opacity: u.isActive ? 1 : 0.6 }}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <img
-                        src={u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.fullName || 'User')}&background=2563eb&color=fff`}
-                        alt={u.fullName}
-                        style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
-                      />
+                      <UserAvatar name={u.fullName} size={36} />
                       <div>
                         <div style={{ fontWeight: 600, color: '#0f172a' }}>
                           {u.fullName} {u.id === currentUser.id && <span style={{ fontSize: '0.7rem', color: '#2563eb' }}>(You)</span>}

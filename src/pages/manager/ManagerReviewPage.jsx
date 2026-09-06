@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { StatusBadge, PriorityBadge, TaskStatusBadge } from '../../components/Badge';
 import { reportApi } from '../../api/reportApi';
+import { UserAvatar } from '../../components/UserAvatar';
 
 export function ManagerReviewPage({ 
   report: selectedReportProp, 
@@ -171,11 +172,7 @@ export function ManagerReviewPage({
                     <tr key={r.id}>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <img 
-                            src={r.userAvatar} 
-                            alt={r.userName} 
-                            style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }}
-                          />
+                          <UserAvatar name={r.userName} size={32} />
                           <div>
                             <div style={{ fontWeight: 600, color: '#0f172a' }}>{r.userName}</div>
                             <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{r.userTitle || 'Engineer'}</div>
@@ -271,11 +268,7 @@ export function ManagerReviewPage({
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <img 
-              src={report.userAvatar} 
-              alt={report.userName} 
-              style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover' }}
-            />
+            <UserAvatar name={report.userName} size={42} />
             <div>
               <div style={{ fontSize: '0.725rem', color: '#64748b' }}>Team Member</div>
               <div style={{ fontWeight: 600, color: '#0f172a' }}>{report.userName}</div>

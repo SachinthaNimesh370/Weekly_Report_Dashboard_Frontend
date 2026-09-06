@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowLeft, Mail, Calendar, Clock, CheckCircle2, FileText, Eye, FolderKanban, Shield } from 'lucide-react';
 import { StatusBadge } from '../../components/Badge';
+import { UserAvatar } from '../../components/UserAvatar';
 
 export function MemberProfilePage({ member, reports, projects, onBack, onViewReport }) {
   if (!member) return null;
@@ -38,11 +39,7 @@ export function MemberProfilePage({ member, reports, projects, onBack, onViewRep
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <img
-              src={member.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.fullName || 'Member')}&background=2563eb&color=fff`}
-              alt={member.fullName}
-              style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e2e8f0' }}
-            />
+            <UserAvatar name={member.fullName} size={64} />
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>{member.fullName}</h2>

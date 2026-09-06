@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { StatusBadge, PriorityBadge, TaskStatusBadge } from '../../components/Badge';
 import { reportApi } from '../../api/reportApi';
+import { UserAvatar } from '../../components/UserAvatar';
 
 export function ReportDetailPage({ report, onBack, currentUser, onNavigateToReview }) {
   const [activeVersion, setActiveVersion] = useState(null);
@@ -67,11 +68,7 @@ export function ReportDetailPage({ report, onBack, currentUser, onNavigateToRevi
       <div className="card" style={{ marginBottom: '1.5rem', backgroundColor: '#ffffff' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <img 
-              src={report.userAvatar} 
-              alt={report.userName}
-              style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #e2e8f0' }}
-            />
+            <UserAvatar name={report.userName} size={40} />
             <div>
               <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Submitted By</div>
               <div style={{ fontWeight: 600, color: '#0f172a' }}>{report.userName}</div>

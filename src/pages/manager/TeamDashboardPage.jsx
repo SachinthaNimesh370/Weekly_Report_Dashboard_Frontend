@@ -21,6 +21,7 @@ import { StatusBadge } from '../../components/Badge';
 import { getPastWeeks } from '../../utils/dateUtils';
 import { dashboardApi } from '../../api/dashboardApi';
 import { reportApi } from '../../api/reportApi';
+import { UserAvatar } from '../../components/UserAvatar';
 
 const pastWeeks = getPastWeeks(8);
 
@@ -621,11 +622,7 @@ export function TeamDashboardPage({
                         style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
                         title="Click to view full member profile"
                       >
-                        <img 
-                          src={member.avatar} 
-                          alt={member.fullName} 
-                          style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover' }}
-                        />
+                        <UserAvatar name={member.fullName} size={34} />
                         <div>
                           <div style={{ fontWeight: 600, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <span>{member.fullName}</span>
@@ -754,11 +751,7 @@ export function TeamDashboardPage({
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                        <img 
-                          src={rep.userAvatar} 
-                          alt={rep.userName} 
-                          style={{ width: '28px', height: '28px', borderRadius: '50%' }}
-                        />
+                        <UserAvatar name={rep.userName} size={28} />
                         <div>
                           <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#0f172a' }}>{rep.userName}</div>
                           <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{rep.projectName}</div>
