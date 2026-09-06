@@ -36,8 +36,7 @@ All accounts are pre-seeded and active in the live EC2 database with the univers
 | **Kavindi Wickramasinghe** | `kavindi.w@sisenco.lk` | `Password@123` | `ROLE_TEAM_MEMBER` | QA & Test Automation Specialist *(Cypress / OWASP)* |
 | **Tharindu Rajapaksha** | `tharindu.r@sisenco.lk` | `Password@123` | `ROLE_TEAM_MEMBER` | Frontend React Engineer *(Dialog Axiata IoT)* |
 | **Anuki Senanayake** | `anuki.s@sisenco.lk` | `Password@123` | `ROLE_TEAM_MEMBER` | UI & Mobile Apps Engineer *(SLT Fiber App)* |
-
-> 💡 **Quick Sign-In**: The login screen (`/`) includes 1-click **Quick Demo Login** buttons for instant access as Admin, Manager, or Member.
+> 💡 **Sign-In**: Use any of the pre-seeded credentials above to log in and test role-based access for Admin, Manager, or Team Member, or register a new account via the **Create Account** tab.
 
 ---
 
