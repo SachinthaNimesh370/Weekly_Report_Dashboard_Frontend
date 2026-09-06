@@ -177,7 +177,9 @@ export function AiChatWidget({ currentUser }) {
     }
   }, [messages, isOpen, isLoading]);
 
-  if (!currentUser) return null;
+  // Section 8: AI Chat Assistant is reserved for Managers & Admins for team-wide Q&A and blocker synthesis
+  const isManagerOrAdmin = currentUser?.role === 'ROLE_MANAGER' || currentUser?.role === 'ROLE_ADMIN';
+  if (!currentUser || !isManagerOrAdmin) return null;
 
   const handleSend = async (textToSend) => {
     const query = textToSend || input;
