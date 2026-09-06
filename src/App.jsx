@@ -15,9 +15,11 @@ import { MemberProfilePage } from './pages/manager/MemberProfilePage';
 import { ProjectsPage } from './pages/projects/ProjectsPage';
 import { UserManagementPage } from './pages/users/UserManagementPage';
 
+import { Power } from 'lucide-react';
 import { projectApi } from './api/projectApi';
 import { reportApi } from './api/reportApi';
 import { dashboardApi } from './api/dashboardApi';
+import { userApi } from './api/userApi';
 
 export function App() {
   // Global State - only populated from the database
@@ -73,23 +75,31 @@ export function App() {
         const list = res?.content ?? res ?? [];
         setReports(list);
 
-        // Fetch team members from manager status endpoint
+        // Fetch all users for Admin and Manager from dedicated user endpoint
         try {
-          const statusList = await dashboardApi.getMemberStatus();
-          if (Array.isArray(statusList)) {
-            const memberUsers = statusList.map(m => ({
-              id: m.userId,
-              fullName: m.fullName,
-              email: m.email,
-              role: 'ROLE_TEAM_MEMBER',
-              roleName: 'Team Member',
-              isActive: true,
-              avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(m.fullName)}&background=2563eb&color=fff`
-            }));
-            setUsers(memberUsers);
+          const allUsersFromApi = await userApi.getAllUsers();
+          if (Array.isArray(allUsersFromApi)) {
+            setUsers(allUsersFromApi);
           }
         } catch (err) {
-          console.warn('Could not fetch members:', err);
+          // Fallback to dashboard member status
+          try {
+            const statusList = await dashboardApi.getMemberStatus();
+            if (Array.isArray(statusList)) {
+              const memberUsers = statusList.map(m => ({
+                id: m.userId,
+                fullName: m.fullName,
+                email: m.email,
+                role: 'ROLE_TEAM_MEMBER',
+                roleName: 'Team Member',
+                isActive: true,
+                avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(m.fullName)}&background=2563eb&color=fff`
+              }));
+              setUsers(memberUsers);
+            }
+          } catch (fallbackErr) {
+            console.warn('Could not fetch members:', fallbackErr);
+          }
         }
       } else {
         const res = await reportApi.getMyReports({ page: 0, size: 50 });
@@ -106,6 +116,20 @@ export function App() {
       refreshDatabaseData(currentUser);
     }
   }, [isAuthenticated, currentUser, refreshDatabaseData]);
+
+  // Listen for account deactivation events from axiosClient
+  useEffect(() => {
+    const handleDeactivatedEvent = (e) => {
+      const msg = e?.detail?.message || 'Your account has been deactivated by an administrator.';
+      alert(msg);
+      handleLogout();
+    };
+
+    window.addEventListener('auth:deactivated', handleDeactivatedEvent);
+    return () => {
+      window.removeEventListener('auth:deactivated', handleDeactivatedEvent);
+    };
+  }, []);
 
   // ==========================================
   // Auth & Persona Handlers
@@ -249,6 +273,11 @@ export function App() {
 
   const handleUpdateUser = (updatedUser) => {
     setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+    if (currentUser && currentUser.id === updatedUser.id) {
+      const merged = { ...currentUser, ...updatedUser };
+      setCurrentUser(merged);
+      localStorage.setItem('user', JSON.stringify(merged));
+    }
   };
 
   // ==========================================
@@ -284,6 +313,55 @@ export function App() {
       <ThemeProvider theme={muiTheme}>
         <CssBaseline />
         <AuthPage onLogin={handleLogin} allUsers={users} />
+      </ThemeProvider>
+    );
+  }
+
+  // Account deactivation guard - deactivated user cannot do anything
+  if (currentUser && currentUser.isActive === false) {
+    return (
+      <ThemeProvider theme={muiTheme}>
+        <CssBaseline />
+        <div style={{
+          minHeight: '100vh',
+          backgroundColor: '#f8fafc',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '2rem 1rem'
+        }}>
+          <div className="card" style={{ maxWidth: '480px', textAlign: 'center', padding: '2.5rem' }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              backgroundColor: '#fef2f2',
+              color: '#dc2626',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.25rem auto'
+            }}>
+              <Power size={28} />
+            </div>
+            <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#0f172a', marginBottom: '0.5rem' }}>
+              Account Deactivated
+            </h2>
+            <p style={{ color: '#64748b', fontSize: '0.875rem', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+              Your Sisenco account (<strong>{currentUser.email}</strong>) has been deactivated by an administrator. You cannot submit reports, view the dashboard, or perform any actions.
+            </p>
+            <div className="alert alert-warning" style={{ fontSize: '0.8rem', marginBottom: '1.5rem', textAlign: 'left' }}>
+              If you believe this is in error, please contact your system administrator.
+            </div>
+            <button
+              onClick={handleLogout}
+              className="btn btn-primary"
+              style={{ width: '100%', justifyContent: 'center' }}
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
       </ThemeProvider>
     );
   }
