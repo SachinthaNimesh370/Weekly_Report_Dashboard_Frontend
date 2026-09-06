@@ -6,6 +6,7 @@
 [![CI/CD](https://img.shields.io/badge/GitHub%20Actions-Automated%20Deploy-2088FF?logo=github-actions&logoColor=white)](https://github.com/features/actions)
 [![AWS EC2](https://img.shields.io/badge/AWS%20EC2-Live%20Production-FF9900?logo=amazonec2&logoColor=white)](https://aws.amazon.com/ec2/)
 [![Google Gemini](https://img.shields.io/badge/AI%20Assistant-Gemini%20Flash-8E75B2?logo=google&logoColor=white)](https://ai.google.dev/)
+[![Live App](https://img.shields.io/badge/Live%20App-http://3.6.126.90/-brightgreen?logo=nginx&logoColor=white)](http://3.6.126.90/)
 
 An enterprise-grade **Weekly Report Generator and Consolidated Team Dashboard** developed for Sisenco Engineering. Built with **React 19**, **Vite**, and a bespoke **Design System**, integrated with a Spring Boot 3 REST API deployed on AWS EC2.
 
@@ -58,9 +59,14 @@ graph TD
 
 ## 🚀 Live Backend & Credentials
 
-The application is connected to a production AWS EC2 instance:
-- **API Base URL**: `http://52.66.241.245:8080`
-- **Frontend Hosting**: AWS EC2 with Nginx reverse-proxy (`/var/www/weekly-report/`)
+The application is connected to production AWS EC2 instances:
+
+| Component | URL | Description |
+| :--- | :--- | :--- |
+| **🌐 Frontend (Live)** | [`http://3.6.126.90/`](http://3.6.126.90/) | React SPA served via Nginx on AWS EC2 |
+| **⚙️ Backend API** | `http://52.66.241.245:8080` | Spring Boot 3 REST API with MySQL |
+
+> 💡 **Quick Access**: Open [http://3.6.126.90/](http://3.6.126.90/) in your browser and log in with any of the seeded credentials below.
 
 ### 🔐 Seeded Demonstration Accounts
 All accounts are active in the live EC2 database with universal password: **`Password@123`**
