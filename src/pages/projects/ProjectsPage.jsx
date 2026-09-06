@@ -118,6 +118,22 @@ export function ProjectsPage({ projects: initialProjects = [], allUsers = [], on
     }
   };
 
+  const handleDeleteProject = async (projectId) => {
+    if (!window.confirm("Are you sure you want to delete this project from the database?")) {
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await projectApi.deleteProject(projectId);
+      setProjects(prev => prev.filter(p => p.id !== projectId));
+    } catch (err) {
+      console.error('Failed to delete project:', err);
+      alert(`Failed to delete project: ${err.message}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const toggleMemberSelection = (userId) => {
     if (selectedMemberIds.includes(userId)) {
       setSelectedMemberIds(selectedMemberIds.filter(id => id !== userId));
@@ -287,6 +303,15 @@ export function ProjectsPage({ projects: initialProjects = [], allUsers = [], on
                         title="Edit project details"
                       >
                         <Edit2 size={13} /> Edit
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteProject(proj.id)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '4px 8px', fontSize: '0.75rem', color: '#dc2626' }}
+                        title="Delete project"
+                      >
+                        <Trash2 size={13} /> Delete
                       </button>
                     </div>
                   )}
