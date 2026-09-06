@@ -51,13 +51,24 @@ export function AuthPage({ onLogin, allUsers }) {
           role: data.role,
           roleName: data.role === 'ROLE_ADMIN' ? 'Admin' : data.role === 'ROLE_MANAGER' ? 'Manager' : 'Team Member',
           token: data.token,
-          isActive: true
+          isActive: data.isActive !== undefined ? data.isActive : true
         };
+
+        if (loggedInUser.isActive === false) {
+          setError('Your account has been deactivated by an administrator. Please contact support.');
+          setLoading(false);
+          return;
+        }
+
         onLogin(loggedInUser);
       }
     } catch (err) {
       console.error('Authentication error:', err);
-      setError(err.message || 'Authentication failed. Please verify credentials.');
+      if (err.isDeactivated || (err.message && err.message.toLowerCase().includes('deactivated'))) {
+        setError('Account Deactivated: This user account has been disabled by an administrator.');
+      } else {
+        setError(err.message || 'Authentication failed. Please verify credentials.');
+      }
     } finally {
       setLoading(false);
     }
