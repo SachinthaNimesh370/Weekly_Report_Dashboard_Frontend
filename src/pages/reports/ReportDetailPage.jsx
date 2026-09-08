@@ -18,6 +18,23 @@ import { UserAvatar } from '../../components/UserAvatar';
 export function ReportDetailPage({ report, onBack, currentUser, onNavigateToReview }) {
   const [activeVersion, setActiveVersion] = useState(null);
   const [versions, setVersions] = useState([]);
+  const [fullReport, setFullReport] = useState(report);
+  const [loadingFull, setLoadingFull] = useState(false);
+
+  // Fetch complete report details (tasks, blockers, achievements, hours, notes)
+  // because the list API only returns summary DTOs without child entity arrays
+  useEffect(() => {
+    if (report?.id) {
+      setLoadingFull(true);
+      reportApi.getReportById(report.id)
+        .then(res => {
+          const data = res?.data || res;
+          if (data && data.id) setFullReport(data);
+        })
+        .catch(err => console.warn('Could not load full report details:', err))
+        .finally(() => setLoadingFull(false));
+    }
+  }, [report?.id]);
 
   useEffect(() => {
     if (report?.id) {
@@ -29,8 +46,9 @@ export function ReportDetailPage({ report, onBack, currentUser, onNavigateToRevi
         });
     }
   }, [report?.id]);
-  const keyIssue = report.blockers?.find(b => b.isKeyIssue);
-  const keyAchieve = report.achievements?.find(a => a.isKeyAchievement);
+
+  const keyIssue = fullReport.blockers?.find(b => b.isKeyIssue);
+  const keyAchieve = fullReport.achievements?.find(a => a.isKeyAchievement);
   const isManagerOrAdmin = currentUser.role === 'ROLE_MANAGER' || currentUser.role === 'ROLE_ADMIN';
 
   return (
@@ -43,19 +61,19 @@ export function ReportDetailPage({ report, onBack, currentUser, onNavigateToRevi
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <h1 className="page-title">
-              Weekly Report: {report.userName}
+              Weekly Report: {fullReport.userName}
             </h1>
-            <StatusBadge status={report.status} />
+            <StatusBadge status={fullReport.status} />
           </div>
           <p className="page-subtitle">
-            Week of {report.weekStart} to {report.weekEnd} • Version {report.currentVersionNo || 1}
+            Week of {fullReport.weekStart} to {fullReport.weekEnd} • Version {fullReport.currentVersionNo || 1}
           </p>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {isManagerOrAdmin && report.status === 'SUBMITTED' && (
+          {isManagerOrAdmin && fullReport.status === 'SUBMITTED' && (
             <button
-              onClick={() => onNavigateToReview(report)}
+              onClick={() => onNavigateToReview(fullReport)}
               className="btn btn-primary"
             >
               Review & Take Action
@@ -64,41 +82,48 @@ export function ReportDetailPage({ report, onBack, currentUser, onNavigateToRevi
         </div>
       </div>
 
+      {/* Loading indicator while fetching full report details */}
+      {loadingFull && (
+        <div style={{ textAlign: 'center', padding: '1rem', color: '#64748b', fontSize: '0.85rem' }}>
+          <span>Loading full report details…</span>
+        </div>
+      )}
+
       {/* Meta Bar */}
       <div className="card" style={{ marginBottom: '1.5rem', backgroundColor: '#ffffff' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <UserAvatar name={report.userName} size={40} />
+            <UserAvatar name={fullReport.userName} size={40} />
             <div>
               <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Submitted By</div>
-              <div style={{ fontWeight: 600, color: '#0f172a' }}>{report.userName}</div>
-              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{report.userTitle || 'Team Member'}</div>
+              <div style={{ fontWeight: 600, color: '#0f172a' }}>{fullReport.userName}</div>
+              <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{fullReport.userTitle || 'Team Member'}</div>
             </div>
           </div>
 
           <div>
             <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Project / Category</div>
-            <div style={{ fontWeight: 600, color: '#0f172a' }}>{report.projectName}</div>
+            <div style={{ fontWeight: 600, color: '#0f172a' }}>{fullReport.projectName}</div>
           </div>
 
           <div>
             <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Submission Date</div>
             <div style={{ fontWeight: 600, color: '#0f172a' }}>
-              {report.submittedAt || 'Draft (Not yet submitted)'}
+              {fullReport.submittedAt || 'Draft (Not yet submitted)'}
             </div>
           </div>
 
           <div>
             <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Total Hours Logged</div>
             <div style={{ fontWeight: 700, color: '#2563eb', fontSize: '1.05rem' }}>
-              {report.hoursBreakdowns?.reduce((s, h) => s + (Number(h.hours) || 0), 0) || report.totalHours || 0} Hours
+              {fullReport.hoursBreakdowns?.reduce((s, h) => s + (Number(h.hours) || 0), 0) || fullReport.totalHours || 0} Hours
             </div>
           </div>
         </div>
       </div>
 
       {/* Review Comments / Feedback Log */}
-      {report.reviewComments && report.reviewComments.length > 0 && (
+      {fullReport.reviewComments && fullReport.reviewComments.length > 0 && (
         <div className="card" style={{ marginBottom: '1.5rem', borderLeft: '4px solid #2563eb' }}>
           <div className="card-header" style={{ marginBottom: '0.75rem' }}>
             <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -106,12 +131,12 @@ export function ReportDetailPage({ report, onBack, currentUser, onNavigateToRevi
               Review Feedback History
             </h3>
             <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-              {report.reviewComments.length} review comment(s)
+              {fullReport.reviewComments.length} review comment(s)
             </span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {report.reviewComments.map((rev) => (
+            {fullReport.reviewComments.map((rev) => (
               <div 
                 key={rev.id} 
                 style={{ 
@@ -161,7 +186,7 @@ export function ReportDetailPage({ report, onBack, currentUser, onNavigateToRevi
               onClick={() => setActiveVersion(null)}
               className={`btn btn-sm ${activeVersion === null ? 'btn-primary' : 'btn-secondary'}`}
             >
-              Current Version (v{report.currentVersionNo || 1})
+              Current Version (v{fullReport.currentVersionNo || 1})
             </button>
             {versions.map((ver) => (
               <button
@@ -200,7 +225,7 @@ export function ReportDetailPage({ report, onBack, currentUser, onNavigateToRevi
           <div className="card-header">
             <h3 className="card-title">Completed Tasks</h3>
             <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
-              {report.taskEntries?.length || 0} task(s) recorded
+              {fullReport.taskEntries?.length || 0} task(s) recorded
             </span>
           </div>
 
@@ -217,7 +242,10 @@ export function ReportDetailPage({ report, onBack, currentUser, onNavigateToRevi
                 </tr>
               </thead>
               <tbody>
-                {report.taskEntries?.map(task => (
+                {fullReport.taskEntries?.length === 0 || !fullReport.taskEntries ? (
+                  <tr><td colSpan={6} style={{ textAlign: 'center', color: '#94a3b8', padding: '1.5rem' }}>No tasks recorded.</td></tr>
+                ) : (
+                  fullReport.taskEntries?.map(task => (
                   <tr key={task.id}>
                     <td style={{ fontWeight: 600, color: '#0f172a' }}>{task.taskName}</td>
                     <td><PriorityBadge priority={task.priority} /></td>
@@ -239,7 +267,8 @@ export function ReportDetailPage({ report, onBack, currentUser, onNavigateToRevi
                     <td>{task.timePlannedHrs}h / <strong>{task.timeSpentHrs}h</strong></td>
                     <td style={{ color: '#334155' }}>{task.outputDeliverable || '—'}</td>
                   </tr>
-                ))}
+                ))
+                )}
               </tbody>
             </table>
           </div>
@@ -251,7 +280,7 @@ export function ReportDetailPage({ report, onBack, currentUser, onNavigateToRevi
             <h3 className="card-title">Tasks Planned for Next Week</h3>
           </div>
           <div style={{ padding: '0.5rem 0', color: '#334155', fontSize: '0.9rem', lineHeight: '1.6' }}>
-            {report.tasksPlannedNextWeek || 'No planned tasks specified.'}
+            {fullReport.tasksPlannedNextWeek || 'No planned tasks specified.'}
           </div>
         </div>
 
@@ -265,13 +294,13 @@ export function ReportDetailPage({ report, onBack, currentUser, onNavigateToRevi
                 Blockers & Challenges
               </h3>
             </div>
-            {report.blockers?.length === 0 ? (
+            {!fullReport.blockers || fullReport.blockers.length === 0 ? (
               <div style={{ color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic' }}>
                 No blockers encountered.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {report.blockers?.map(b => (
+                {fullReport.blockers.map(b => (
                   <div 
                     key={b.id} 
                     style={{
@@ -301,13 +330,13 @@ export function ReportDetailPage({ report, onBack, currentUser, onNavigateToRevi
                 Achievements & Highlights
               </h3>
             </div>
-            {report.achievements?.length === 0 ? (
+            {!fullReport.achievements || fullReport.achievements.length === 0 ? (
               <div style={{ color: '#94a3b8', fontSize: '0.85rem', fontStyle: 'italic' }}>
                 No highlights recorded.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {report.achievements?.map(a => (
+                {fullReport.achievements.map(a => (
                   <div 
                     key={a.id} 
                     style={{
@@ -336,7 +365,7 @@ export function ReportDetailPage({ report, onBack, currentUser, onNavigateToRevi
             <h3 className="card-title">Hours Worked Breakdown</h3>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem' }}>
-            {report.hoursBreakdowns?.map((h, i) => (
+            {fullReport.hoursBreakdowns?.map((h, i) => (
               <div key={i} style={{ padding: '12px', backgroundColor: '#f8fafc', borderRadius: 'var(--radius-sm)', border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: '0.725rem', color: '#64748b', textTransform: 'capitalize' }}>
                   {h.taskType.toLowerCase()}
@@ -350,13 +379,13 @@ export function ReportDetailPage({ report, onBack, currentUser, onNavigateToRevi
         </div>
 
         {/* 5. Notes */}
-        {report.notes && (
+        {fullReport.notes && (
           <div className="card">
             <div className="card-header">
               <h3 className="card-title">Notes & Links</h3>
             </div>
             <div style={{ color: '#334155', fontSize: '0.875rem' }}>
-              {report.notes}
+              {fullReport.notes}
             </div>
           </div>
         )}

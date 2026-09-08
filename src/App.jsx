@@ -181,6 +181,8 @@ export function App() {
     } else {
       setReports([reportData, ...reports]);
     }
+    // Refresh from DB to get server-canonical state
+    refreshDatabaseData();
   };
 
   // Submit Report for Review
@@ -205,6 +207,8 @@ export function App() {
 
     // Redirect to personal history with confirmation
     setActiveView('history');
+    // Refresh from DB to get server-canonical state
+    refreshDatabaseData();
   };
 
   // Manager Approves Report

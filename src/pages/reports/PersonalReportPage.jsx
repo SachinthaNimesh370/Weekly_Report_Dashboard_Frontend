@@ -34,6 +34,10 @@ export function PersonalReportPage({
   const defaultStart = getMonday();
   const defaultEnd = getSunday(defaultStart);
 
+  // Track the real DB report ID (captured after first createDraft or from editing)
+  const [savedReportId, setSavedReportId] = useState(reportToEdit?.id || null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+
   const [projectId, setProjectId] = useState(reportToEdit?.projectId || (projects[0]?.id || ''));
   const [weekStart, setWeekStart] = useState(reportToEdit?.weekStart || defaultStart);
   const [weekEnd, setWeekEnd] = useState(reportToEdit?.weekEnd || defaultEnd);
@@ -68,23 +72,47 @@ export function PersonalReportPage({
 
   const [notification, setNotification] = useState(null);
 
-  // Sync state whenever reportToEdit or projects change
+  // Helper to populate all form fields from a full report object
+  const populateFormFromReport = (fullReport) => {
+    setProjectId(fullReport.projectId || (projects[0]?.id || ''));
+    setWeekStart(fullReport.weekStart || defaultStart);
+    setWeekEnd(fullReport.weekEnd || defaultEnd);
+    setTasksPlannedNextWeek(fullReport.tasksPlannedNextWeek || '');
+    setNotes(fullReport.notes || '');
+    setTaskEntries(fullReport.taskEntries || []);
+    setBlockers(fullReport.blockers || []);
+    setAchievements(fullReport.achievements || []);
+    setHoursDevelopment(fullReport.hoursBreakdowns?.find(h => h.taskType === 'DEVELOPMENT')?.hours || 0);
+    setHoursTesting(fullReport.hoursBreakdowns?.find(h => h.taskType === 'TESTING')?.hours || 0);
+    setHoursMeetings(fullReport.hoursBreakdowns?.find(h => h.taskType === 'MEETINGS')?.hours || 0);
+    setHoursDocumentation(fullReport.hoursBreakdowns?.find(h => h.taskType === 'DOCUMENTATION')?.hours || 0);
+    setHoursOther(fullReport.hoursBreakdowns?.find(h => h.taskType === 'OTHER')?.hours || 0);
+  };
+
+  // When reportToEdit changes (e.g. navigating to edit a draft),
+  // fetch FULL report details from DB so all child entities are loaded.
   useEffect(() => {
-    if (reportToEdit) {
-      setProjectId(reportToEdit.projectId || (projects[0]?.id || ''));
-      setWeekStart(reportToEdit.weekStart || defaultStart);
-      setWeekEnd(reportToEdit.weekEnd || defaultEnd);
-      setTasksPlannedNextWeek(reportToEdit.tasksPlannedNextWeek || '');
-      setNotes(reportToEdit.notes || '');
-      setTaskEntries(reportToEdit.taskEntries || []);
-      setBlockers(reportToEdit.blockers || []);
-      setAchievements(reportToEdit.achievements || []);
-      setHoursDevelopment(reportToEdit.hoursBreakdowns?.find(h => h.taskType === 'DEVELOPMENT')?.hours || 0);
-      setHoursTesting(reportToEdit.hoursBreakdowns?.find(h => h.taskType === 'TESTING')?.hours || 0);
-      setHoursMeetings(reportToEdit.hoursBreakdowns?.find(h => h.taskType === 'MEETINGS')?.hours || 0);
-      setHoursDocumentation(reportToEdit.hoursBreakdowns?.find(h => h.taskType === 'DOCUMENTATION')?.hours || 0);
-      setHoursOther(reportToEdit.hoursBreakdowns?.find(h => h.taskType === 'OTHER')?.hours || 0);
-    } else {
+    setSavedReportId(reportToEdit?.id || null);
+    if (reportToEdit?.id) {
+      setLoadingDetails(true);
+      reportApi.getReportById(reportToEdit.id)
+        .then(res => {
+          // axiosClient unwraps the ApiResponse, so res may be the full ApiResponse or the data
+          const fullReport = res?.data || res;
+          if (fullReport && fullReport.id) {
+            populateFormFromReport(fullReport);
+          } else {
+            // Fallback: use whatever partial data we have
+            populateFormFromReport(reportToEdit);
+          }
+        })
+        .catch(err => {
+          console.warn('Could not fetch full report details, using summary data:', err);
+          populateFormFromReport(reportToEdit);
+        })
+        .finally(() => setLoadingDetails(false));
+    } else if (!reportToEdit) {
+      // New report — reset all fields
       setProjectId(projects[0]?.id || '');
       setWeekStart(defaultStart);
       setWeekEnd(defaultEnd);
@@ -99,7 +127,7 @@ export function PersonalReportPage({
       setHoursDocumentation(0);
       setHoursOther(0);
     }
-  }, [reportToEdit, projects]);
+  }, [reportToEdit?.id]);
 
   // Task entries handlers
   const handleAddTask = () => {
@@ -168,34 +196,44 @@ export function PersonalReportPage({
   // Construct payload
   const [saving, setSaving] = useState(false);
 
-  // Build payload matching backend ReportRequest DTO exactly
+  // Build payload matching backend ReportRequest DTO exactly.
+  // Filters out empty/blank rows to prevent @NotBlank validation errors (400 Bad Request).
   const buildReportPayload = () => ({
     projectId: Number(projectId),
     weekStart,  // LocalDate: "YYYY-MM-DD"
     weekEnd,    // LocalDate: "YYYY-MM-DD"
     tasksPlannedNextWeek,
     notes,
-    taskEntries: taskEntries.map(t => ({
-      id: t.id && !isNaN(t.id) && t.id < 1e12 ? t.id : undefined,  // Only send real DB IDs
-      taskName: t.taskName,
-      priority: t.priority,
-      plannedPct: Number(t.plannedPct),
-      actualPct: Number(t.actualPct),
-      status: t.status,
-      timePlannedHrs: Number(t.timePlannedHrs),
-      timeSpentHrs: Number(t.timeSpentHrs),
-      outputDeliverable: t.outputDeliverable
-    })),
-    blockers: blockers.map(b => ({
-      id: b.id && !isNaN(b.id) && b.id < 1e12 ? b.id : undefined,
-      description: b.description,
-      isKeyIssue: Boolean(b.isKeyIssue)
-    })),
-    achievements: achievements.map(a => ({
-      id: a.id && !isNaN(a.id) && a.id < 1e12 ? a.id : undefined,
-      description: a.description,
-      isKeyAchievement: Boolean(a.isKeyAchievement)
-    })),
+    // Only include tasks that have a non-empty taskName to avoid @NotBlank errors
+    taskEntries: taskEntries
+      .filter(t => t.taskName && t.taskName.trim() !== '')
+      .map(t => ({
+        id: t.id && !isNaN(t.id) && t.id < 1e12 ? t.id : undefined,  // Only send real DB IDs
+        taskName: t.taskName,
+        priority: t.priority,
+        plannedPct: Number(t.plannedPct),
+        actualPct: Number(t.actualPct),
+        status: t.status,
+        timePlannedHrs: Number(t.timePlannedHrs),
+        timeSpentHrs: Number(t.timeSpentHrs),
+        outputDeliverable: t.outputDeliverable || ''
+      })),
+    // Only include blockers with a non-empty description
+    blockers: blockers
+      .filter(b => b.description && b.description.trim() !== '')
+      .map(b => ({
+        id: b.id && !isNaN(b.id) && b.id < 1e12 ? b.id : undefined,
+        description: b.description,
+        isKeyIssue: Boolean(b.isKeyIssue)
+      })),
+    // Only include achievements with a non-empty description
+    achievements: achievements
+      .filter(a => a.description && a.description.trim() !== '')
+      .map(a => ({
+        id: a.id && !isNaN(a.id) && a.id < 1e12 ? a.id : undefined,
+        description: a.description,
+        isKeyAchievement: Boolean(a.isKeyAchievement)
+      })),
     hoursBreakdowns: [
       { taskType: 'DEVELOPMENT', hours: Number(hoursDevelopment) },
       { taskType: 'TESTING', hours: Number(hoursTesting) },
@@ -205,12 +243,12 @@ export function PersonalReportPage({
     ].filter(h => h.hours > 0)
   });
 
-  // Also build local mock-compatible object for App.jsx state update
-  const buildLocalReportData = (targetStatus) => {
+  // Build local state-compatible object for App.jsx state update (uses real DB id)
+  const buildLocalReportData = (targetStatus, realId) => {
     const selectedProject = projects.find(p => p.id === Number(projectId)) || projects[0];
     const totalHours = Number(hoursDevelopment) + Number(hoursTesting) + Number(hoursMeetings) + Number(hoursDocumentation) + Number(hoursOther);
     return {
-      id: reportToEdit?.id || Date.now(),
+      id: realId || savedReportId || reportToEdit?.id,
       userId: currentUser.id,
       userName: currentUser.fullName,
       userEmail: currentUser.email,
@@ -235,13 +273,19 @@ export function PersonalReportPage({
     setSaving(true);
     try {
       const payload = buildReportPayload();
-      if (isEditing && reportToEdit?.id) {
-        await reportApi.updateReport(reportToEdit.id, payload);
+      let realId = savedReportId;
+      if (realId) {
+        // Already have a DB id — update the existing report
+        await reportApi.updateReport(realId, payload);
       } else {
-        await reportApi.createDraft(payload);
+        // First time saving — create new draft and capture the returned DB id
+        const created = await reportApi.createDraft(payload);
+        // axiosClient unwraps ApiResponse, so the returned object may be ApiResponse or the data
+        realId = created?.data?.id || created?.id;
+        if (realId) setSavedReportId(realId);
       }
       setNotification('Draft successfully saved to server.');
-      if (onSaveDraft) onSaveDraft(buildLocalReportData('DRAFT'));
+      if (onSaveDraft) onSaveDraft(buildLocalReportData('DRAFT', realId));
     } catch (err) {
       console.error('Save draft failed:', err);
       setNotification(`Save error: ${err.message}`);
@@ -252,29 +296,36 @@ export function PersonalReportPage({
   };
 
   const onSubmit = async () => {
+    // Validate required fields
     if (!tasksPlannedNextWeek.trim()) {
       alert('Please fill in "Tasks Planned for Next Week".');
       return;
     }
-    const emptyTask = taskEntries.find(t => !t.taskName.trim());
-    if (emptyTask) {
-      alert('Please provide a name for all tasks in the table.');
+    const namedTasks = taskEntries.filter(t => t.taskName && t.taskName.trim() !== '');
+    if (namedTasks.length === 0) {
+      alert('Please add at least one task with a name before submitting.');
       return;
     }
     setSaving(true);
     try {
       const payload = buildReportPayload();
-      let savedReport;
-      if (isEditing && reportToEdit?.id) {
-        await reportApi.updateReport(reportToEdit.id, payload);
-        savedReport = { id: reportToEdit.id };
+      let realId = savedReportId;
+      if (realId) {
+        // Update existing draft before submitting
+        await reportApi.updateReport(realId, payload);
       } else {
-        savedReport = await reportApi.createDraft(payload);
+        // Create draft first, then capture the id for submission
+        const created = await reportApi.createDraft(payload);
+        realId = created?.data?.id || created?.id;
+        if (realId) setSavedReportId(realId);
       }
-      const reportId = savedReport?.id || reportToEdit?.id;
-      if (reportId) await reportApi.submitReport(reportId);
+      if (realId) {
+        await reportApi.submitReport(realId);
+      } else {
+        throw new Error('Could not determine report ID for submission.');
+      }
       setNotification('Report submitted for manager review!');
-      if (onSubmitReport) onSubmitReport(buildLocalReportData('SUBMITTED'));
+      if (onSubmitReport) onSubmitReport(buildLocalReportData('SUBMITTED', realId));
     } catch (err) {
       console.error('Submit report failed:', err);
       alert(`Submit failed: ${err.message}`);
@@ -286,6 +337,27 @@ export function PersonalReportPage({
   // Recent reviewer comment (if in NEEDS_CORRECTION)
   const latestCorrectionComment = reportToEdit?.latestReviewComment || reportToEdit?.reviewComments?.slice(-1)[0];
 
+
+  // Show a full-page loader while fetching report details from DB
+  if (loadingDetails) {
+    return (
+      <div className="app-container">
+        <div style={{ textAlign: 'center', padding: '5rem 1rem', color: '#64748b' }}>
+          <div style={{
+            width: '36px',
+            height: '36px',
+            border: '3px solid #e2e8f0',
+            borderTopColor: '#2563eb',
+            borderRadius: '50%',
+            margin: '0 auto 16px',
+            animation: 'spin 0.7s linear infinite'
+          }} />
+          <p style={{ fontSize: '0.9375rem', fontWeight: 500 }}>Loading report details…</p>
+          <p style={{ fontSize: '0.8125rem', marginTop: '4px' }}>Fetching your saved data from the server</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-container">

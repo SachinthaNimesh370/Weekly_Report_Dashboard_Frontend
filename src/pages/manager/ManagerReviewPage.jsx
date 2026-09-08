@@ -31,15 +31,36 @@ export function ManagerReviewPage({
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [fetchError, setFetchError] = useState('');
+  const [loadingReportDetails, setLoadingReportDetails] = useState(false);
   const [report, setReport] = useState(selectedReportProp);
 
   useEffect(() => {
     fetchPendingReports();
   }, []);
 
+  // When a report is selected/passed in, fetch its FULL details from DB
+  // because the list API only returns summary DTOs (no taskEntries, blockers, etc.)
   useEffect(() => {
-    setReport(selectedReportProp);
-  }, [selectedReportProp]);
+    if (selectedReportProp?.id) {
+      setLoadingReportDetails(true);
+      reportApi.getReportById(selectedReportProp.id)
+        .then(res => {
+          const data = res?.data || res;
+          if (data && data.id) {
+            setReport(data);
+          } else {
+            setReport(selectedReportProp);
+          }
+        })
+        .catch(err => {
+          console.warn('Could not load full report for review, using summary:', err);
+          setReport(selectedReportProp);
+        })
+        .finally(() => setLoadingReportDetails(false));
+    } else {
+      setReport(selectedReportProp);
+    }
+  }, [selectedReportProp?.id]);
 
   const fetchPendingReports = async () => {
     setLoading(true);
